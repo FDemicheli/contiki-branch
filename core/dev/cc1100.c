@@ -674,17 +674,16 @@ PROCESS_THREAD(cc1100_process, ev, data)
 
     packetbuf_clear();
     len = cc1100_read(packetbuf_dataptr(), PACKETBUF_SIZE);
-    if(len > 0) {
-      packetbuf_set_datalen(len);
-
-      NETSTACK_RDC.input();
+    
+    packetbuf_set_datalen(len);
+    
+    NETSTACK_RDC.input();
 #if CC1100_TIMETABLE_PROFILING
-      TIMETABLE_TIMESTAMP(cc1100_timetable, "end");
-      timetable_aggregate_compute_detailed(&aggregate_time,
-                                           &cc1100_timetable);
+    TIMETABLE_TIMESTAMP(cc1100_timetable, "end");
+    timetable_aggregate_compute_detailed(&aggregate_time,
+                                         &cc1100_timetable);
       timetable_clear(&cc1100_timetable);
 #endif /* CC1100_TIMETABLE_PROFILING */
-    }
   }
 
   PROCESS_END();
