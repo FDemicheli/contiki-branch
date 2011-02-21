@@ -41,14 +41,24 @@ static int counter = 0;
 /*---------------------------------------------------------------------------*/
 #if PRINT_STACK_ON_REBOOT
 #ifdef CONTIKI_TARGET_SKY
+#define WATCHDOG_TXBUF TXBUF1
+#define WATCHDOG_IFG IFG2
+#define WATCHDOG_UTXIFG UTXIFG1
+#endif /* CONTIKI_TARGET_SKY */
+#ifdef CONTIKI_TARGET_WSN430
+#define WATCHDOG_TXBUF TXBUF0
+#define WATCHDOG_IFG IFG1
+#define WATCHDOG_UTXIFG UTXIFG0
+#endif /* CONTIKI_TARGET_WSN430 */
+#if defined(CONTIKI_TARGET_SKY) || defined(CONTIKI_TARGET_WSN430)
 static void
 printchar(char c)
 {
   /* Transmit the data. */
-  TXBUF1 = c;
+  WATCHDOG_TXBUF = c;
 
   /* Loop until the transmission buffer is available. */
-  while((IFG2 & UTXIFG1) == 0);
+  while((WATCHDOG_IFG & WATCHDOG_UTXIFG) == 0);
 
 }
 /*---------------------------------------------------------------------------*/
@@ -67,13 +77,13 @@ printstring(char *s)
     printchar(*s++);
   }
 }
-#endif /* CONTIKI_TARGET_SKY */
+#endif /* CONTIKI_TARGET_SKY || CONTIKI_TARGET_WSN430 */
 #endif /* PRINT_STACK_ON_REBOOT */
 /*---------------------------------------------------------------------------*/
 interrupt(WDT_VECTOR)
 watchdog_interrupt(void)
 {
-#ifdef CONTIKI_TARGET_SKY
+#if defined(CONTIKI_TARGET_SKY) || defined(CONTIKI_TARGET_WSN430)
 #if PRINT_STACK_ON_REBOOT
   uint8_t dummy;
   static uint8_t *ptr;
@@ -95,7 +105,7 @@ watchdog_interrupt(void)
   }
   printchar('\n');
 #endif /* PRINT_STACK_ON_REBOOT */
-#endif /* CONTIKI_TARGET_SKY */
+#endif /* CONTIKI_TARGET_SKY || CONTIKI_TARGET_WSN430 */
 
   watchdog_reboot();
 }
