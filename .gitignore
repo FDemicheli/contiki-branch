@@ -1,0 +1,5 @@
+/examples/*/Makefile.target
+/examples/*/*.a
+/examples/*/*.map
+/examples/*/*.wsn430
+/examples/*/obj_*
