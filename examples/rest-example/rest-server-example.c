@@ -5,7 +5,6 @@
 #include "contiki-net.h"
 #include "rest.h"
 
-#include "dev/light-sensor.h"
 #include "dev/battery-sensor.h"
 #include "dev/sht11-sensor.h"
 #include "dev/leds.h"
@@ -85,34 +84,6 @@ led_handler(REQUEST* request, RESPONSE* response)
   }
 }
 
-uint16_t light_photosynthetic;
-uint16_t light_solar;
-
-void
-read_light_sensor(uint16_t* light_1, uint16_t* light_2)
-{
-  *light_1 = light_sensor.value(LIGHT_SENSOR_PHOTOSYNTHETIC);
-  *light_2 = light_sensor.value(LIGHT_SENSOR_TOTAL_SOLAR);
-}
-
-/*A simple getter example. Returns the reading from light sensor with a simple etag*/
-RESOURCE(light, METHOD_GET, "light");
-void
-light_handler(REQUEST* request, RESPONSE* response)
-{
-#ifdef CONTIKI_TARGET_SKY
-  read_light_sensor(&light_photosynthetic, &light_solar);
-  sprintf(temp,"%u;%u", light_photosynthetic, light_solar);
-#else /*CONTIKI_TARGET_SKY*/
-  sprintf(temp,"%d.%d", 0, 0);
-#endif /*CONTIKI_TARGET_SKY*/
-
-  char etag[4] = "ABCD";
-  rest_set_header_content_type(response, TEXT_PLAIN);
-  rest_set_header_etag(response, etag, sizeof(etag));
-  rest_set_response_payload(response, temp, strlen(temp));
-}
-
 /*A simple actuator example. Toggles the red led*/
 RESOURCE(toggle, METHOD_GET | METHOD_PUT | METHOD_POST, "toggle");
 void
@@ -129,7 +100,6 @@ discover_handler(REQUEST* request, RESPONSE* response)
   int index = 0;
   index += sprintf(temp + index, "%s,", "</helloworld>;n=\"HelloWorld\"");
   index += sprintf(temp + index, "%s,", "</led>;n=\"LedControl\"");
-  index += sprintf(temp + index, "%s", "</light>;n=\"Light\"");
 
   rest_set_response_payload(response, temp, strlen(temp));
   rest_set_header_content_type(response, APPLICATION_LINK_FORMAT);
@@ -148,13 +118,10 @@ PROCESS_THREAD(rest_server_example, ev, data)
   PRINTF("HTTP Server\n");
 #endif
 
-  SENSORS_ACTIVATE(light_sensor);
-
   rest_init();
 
   rest_activate_resource(&resource_helloworld);
   rest_activate_resource(&resource_led);
-  rest_activate_resource(&resource_light);
   rest_activate_resource(&resource_toggle);
   rest_activate_resource(&resource_discover);
 
