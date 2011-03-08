@@ -43,7 +43,6 @@
 #include "net/rpl/rpl.h"
 
 #include "net/netstack.h"
-#include "dev/button-sensor.h"
 #include "dev/slip.h"
 #include "webserver-nogui.h"
 #include "httpd-simple.h"
@@ -203,7 +202,6 @@ PROCESS_THREAD(border_router_process, ev, data)
   PROCESS_PAUSE();
 
   process_start(&webserver_nogui_process, NULL);
-  SENSORS_ACTIVATE(button_sensor);
 
   PRINTF("RPL-Border router started\n");
 
@@ -228,10 +226,6 @@ PROCESS_THREAD(border_router_process, ev, data)
 
   while(1) {
     PROCESS_YIELD();
-    if (ev == sensors_event && data == &button_sensor) {
-      PRINTF("Initiating global repair\n");
-      rpl_repair_dag(rpl_get_dag(RPL_ANY_INSTANCE));
-    }
   }
 
   PROCESS_END();
