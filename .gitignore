@@ -4,3 +4,10 @@
 /examples/*/*.map
 /examples/*/*.wsn430
 /examples/*/obj_*
+/examples/*/*/Makefile.target
+/examples/*/*/*.a
+/examples/*/*/*.map
+/examples/*/*/*.wsn430
+/examples/*/*/obj_*
+/tools/tunslip6
+/apps/snmpd
