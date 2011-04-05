@@ -37,8 +37,8 @@ ifdef WERROR
 CFLAGSWERROR=-Werror
 endif
 CFLAGSNO = -Wall -mmcu=$(MCU) -g $(CFLAGSWERROR)
-CFLAGS  += $(CFLAGSNO) -Os
-LDFLAGS += -mmcu=$(MCU) -Wl,-Map=contiki-$(TARGET).map
+CFLAGS  += $(CFLAGSNO) -Os -ffunction-sections
+LDFLAGS += -mmcu=$(MCU) -Wl,-Map=contiki-$(TARGET).map,--gc-sections
 
 
 ### These flags can reduce the code size and RAM usage with up to 10%
