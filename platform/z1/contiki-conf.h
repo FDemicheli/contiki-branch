@@ -54,16 +54,18 @@
 #define CXMAC_CONF_ANNOUNCEMENTS         0
 #define XMAC_CONF_ANNOUNCEMENTS          0
 
-#define QUEUEBUF_CONF_NUM                4
+#define QUEUEBUF_CONF_NUM                4 
+
 
 #else /* WITH_UIP6 */
 
 /* Network setup for non-IPv6 (rime). */
 
 #define NETSTACK_CONF_NETWORK rime_driver
-#define NETSTACK_CONF_MAC     csma_driver
+#define NETSTACK_CONF_MAC     nullmac_driver
 /* #define NETSTACK_CONF_RDC     contikimac_driver */
 #define NETSTACK_CONF_RDC     nullrdc_driver
+#define NETSTACK_CONF_RDC_CHANNEL_CHECK_RATE 128 
 #define NETSTACK_CONF_FRAMER  framer_802154
 
 #define CC2420_CONF_AUTOACK              0
@@ -189,7 +191,7 @@
 
 
 #ifdef PROJECT_CONF_H
-#include PROJECT_CONF_H
+#include "project-conf.h"
 #endif /* PROJECT_CONF_H */
 
 

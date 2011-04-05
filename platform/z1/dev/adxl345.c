@@ -43,7 +43,7 @@
 #include <signal.h>
 #include "contiki.h"
 #include "adxl345.h"
-#include "cc2420-arch.c"
+#include "cc2420.h"
 #include "i2cmaster.h"
 
 /* Callback pointers when interrupt occurs */
@@ -371,6 +371,7 @@ PROCESS_THREAD(accmeter_process, ev, data) {
 /* XXX This interrupt vector is shared with the interrupts from CC2420, so that
   was moved here but should find a better home. XXX */
 
+#if 1
 static struct timer suppressTimer1, suppressTimer2;
 
 interrupt(PORT1_VECTOR) port1_isr (void) {
@@ -400,6 +401,7 @@ interrupt(PORT1_VECTOR) port1_isr (void) {
   }
   ENERGEST_OFF(ENERGEST_TYPE_IRQ);
 }
+
 /*---------------------------------------------------------------------------*/
 
-
+#endif
