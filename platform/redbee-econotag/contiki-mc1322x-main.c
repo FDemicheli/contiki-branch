@@ -48,6 +48,7 @@
 #include "lib/random.h"
 #include "net/netstack.h"
 #include "net/mac/frame802154.h"
+#include "lib/include/uart1.h"
 
 #if WITH_UIP6
 #include "net/sicslowpan.h"
@@ -435,7 +436,7 @@ main(void)
   PRINTF("setting short mac 0x%04x\n\r", *MACA_MAC16ADDR);
   PRINTF("setting long mac 0x%08x_%08x\n\r", *MACA_MAC64HI, *MACA_MAC64LO);
 
-#if NULLRDC_CONF_802154_AUTOACK_HW
+#if MACA_AUTOACK
   set_prm_mode(AUTOACK);
 #endif
 
@@ -490,7 +491,6 @@ main(void)
 	  cop_service();
 #endif
 
-	  /* TODO: replace this with a uart rx interrupt */
 	  if(uart1_input_handler != NULL) {
 		  if(uart1_can_get()) {
 			  uart1_input_handler(uart1_getc());

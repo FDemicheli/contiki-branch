@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, Swedish Institute of Computer Science.
+ * Copyright (c) 2010, STMicroelectronics.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,33 +28,21 @@
  *
  * This file is part of the Contiki operating system.
  *
- * $Id: msp430.h,v 1.4 2011/01/05 13:36:38 joxe Exp $
+ * $Id: shell-sensors.h,v 1.1 2010/10/25 09:03:39 salvopitru Exp $
  */
 
 /**
  * \file
- *         MSP430 definitions
+ *         Header file for Contik shell sensors command.
  * \author
- *         Adam Dunkels <adam@sics.se>
+ *         Salvatore Pitrulli <salvopitru@users.sourceforge.net>
  */
 
-#ifndef __MSP430_H__
-#define __MSP430_H__
+#ifndef __SHELL_SENSORS_H__
+#define __SHELL_SENSORS_H__
 
-#include "contiki-conf.h"
+#include "shell.h"
 
-#ifdef F_CPU
-#define MSP430_CPU_SPEED F_CPU
-#else
-#define MSP430_CPU_SPEED 2457600UL
-#endif
+void shell_sensors_init(void);
 
-#define MSP430_REQUIRE_CPUON 0
-#define MSP430_REQUIRE_LPM1 1
-#define MSP430_REQUIRE_LPM2 2
-#define MSP430_REQUIRE_LPM3 3
-
-void msp430_add_lpm_req(int req);
-void msp430_remove_lpm_req(int req);
-
-#endif /* __MSP430_H__ */
+#endif /* __SHELL_SENSORS_H__ */

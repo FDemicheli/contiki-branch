@@ -571,7 +571,10 @@ compress_hdr_hc06(rimeaddr_t *rime_destaddr)
     iphc1 |= compress_addr_64(SICSLOWPAN_IPHC_SAM_BIT,
                               &UIP_IP_BUF->srcipaddr, &uip_lladdr);
     /* No context found for this address */
-  } else if(uip_is_addr_link_local(&UIP_IP_BUF->srcipaddr)) {
+  } else if(uip_is_addr_link_local(&UIP_IP_BUF->srcipaddr) &&
+	    UIP_IP_BUF->destipaddr.u16[1] == 0 &&
+	    UIP_IP_BUF->destipaddr.u16[2] == 0 &&
+	    UIP_IP_BUF->destipaddr.u16[3] == 0) {
     iphc1 |= compress_addr_64(SICSLOWPAN_IPHC_SAM_BIT,
                               &UIP_IP_BUF->srcipaddr, &uip_lladdr);
   } else {
@@ -619,7 +622,10 @@ compress_hdr_hc06(rimeaddr_t *rime_destaddr)
       iphc1 |= compress_addr_64(SICSLOWPAN_IPHC_DAM_BIT,
 	       &UIP_IP_BUF->destipaddr, (uip_lladdr_t *)rime_destaddr);
       /* No context found for this address */
-    } else if(uip_is_addr_link_local(&UIP_IP_BUF->destipaddr)) {
+    } else if(uip_is_addr_link_local(&UIP_IP_BUF->destipaddr) &&
+	      UIP_IP_BUF->destipaddr.u16[1] == 0 &&
+	      UIP_IP_BUF->destipaddr.u16[2] == 0 &&
+	      UIP_IP_BUF->destipaddr.u16[3] == 0) {
       iphc1 |= compress_addr_64(SICSLOWPAN_IPHC_DAM_BIT,
                &UIP_IP_BUF->destipaddr, (uip_lladdr_t *)rime_destaddr);
     } else {
@@ -759,7 +765,7 @@ uncompress_hdr_hc06(uint16_t ip_len)
           SICSLOWPAN_IP_BUF->vtc = 0x60 | ((*hc06_ptr >> 2) & 0x0f);
           SICSLOWPAN_IP_BUF->tcflow = ((*hc06_ptr << 6) & 0xC0) | ((*hc06_ptr >> 2) & 0x30);
           SICSLOWPAN_IP_BUF->flow = 0;
-        hc06_ptr += 3;
+          hc06_ptr += 1;
       } else {
         /* Traffic class is compressed */
         SICSLOWPAN_IP_BUF->vtc = 0x60;

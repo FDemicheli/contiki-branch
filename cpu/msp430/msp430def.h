@@ -35,12 +35,14 @@
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #else
+#ifndef uint8_t
 typedef unsigned char   uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned long  uint32_t;
 typedef   signed char    int8_t;
 typedef          short  int16_t;
 typedef          long   int32_t;
+#endif
 #endif /* !HAVE_STDINT_H */
 
 /* These names are deprecated, use C99 names. */
@@ -69,7 +71,11 @@ void    splx_(spl_t);
 spl_t   splhigh_(void);
 
 #define splhigh() splhigh_()
+#ifdef __IAR_SYSTEMS_ICC__
+#define splx(sr) sr = __get_SR_register()
+#else
 #define splx(sr) __asm__ __volatile__("bis %0, r2" : : "r" (sr))
+#endif
 
 /* Workaround for bug in msp430-gcc compiler */
 #if defined(__MSP430__) && defined(__GNUC__) && MSP430_MEMCPY_WORKAROUND
@@ -101,5 +107,22 @@ void *w_memset(void *out, int value, size_t n);
 /* } while(0) */
 #endif /* memcpy */
 #endif /* __GNUC__ &&  __MSP430__ && MSP430_MEMCPY_WORKAROUND */
+
+
+/* Moved from the msp430.h file with other msp430 related defines */
+
+#ifdef F_CPU
+#define MSP430_CPU_SPEED F_CPU
+#else
+#define MSP430_CPU_SPEED 2457600UL
+#endif
+
+#define MSP430_REQUIRE_CPUON 0
+#define MSP430_REQUIRE_LPM1 1
+#define MSP430_REQUIRE_LPM2 2
+#define MSP430_REQUIRE_LPM3 3
+
+void msp430_add_lpm_req(int req);
+void msp430_remove_lpm_req(int req);
 
 #endif /* MSP430DEF_H */
