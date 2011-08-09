@@ -14,11 +14,11 @@
 \
   /*						  \
    * Set comparison register: \
-   * Crystal freq. is 16000000,\
-   * pre-scale factor is 1024, i.e. we have 125 "ticks" / sec: \
-   * 16000000 = 1024 * 125 * 125 \
+   * Crystal freq. is F_CPU,\
+   * pre-scale factor is 1024, we want CLOCK_CONF_SECOND ticks / sec: \
+   * F_CPU = 1024 * CLOCK_CONF_SECOND * OCR0 \
    */ \
-  OCR0 = 125; \
+  OCR0 = F_CPU/1024UL/CLOCK_CONF_SECOND; \
 \
   /* 								\
    * Set timer control register: 	\
@@ -48,11 +48,11 @@
 \
   /*						  \
    * Set comparison register: \
-   * Crystal freq. is 8000000,\
-   * pre-scale factor is 1024, we want 125 ticks / sec: \
-   * 8000000 = 1024 * 126.01 * 62, less 1 for CTC mode \
+   * Crystal freq. is F_CPU,\
+   * pre-scale factor is 1024, we want CLOCK_CONF_SECOND ticks / sec: \
+   * F_CPU = 1024 * CLOCK_CONF_SECOND * OCR0A, less 1 for CTC mode \
    */ \
-  OCR0A = 61; \
+  OCR0A = F_CPU/1024/CLOCK_CONF_SECOND - 1; \
 \
   /* 								\
    * Set timer control register: 	\
@@ -92,10 +92,10 @@
   /*						  \
    * Set comparison register: \
    * Crystal freq. is 32768,\
-   * pre-scale factor is 8, we want 125 ticks / sec: \
-   * 32768 = 8 * 124.1 * 33, less 1 for CTC mode\
+   * pre-scale factor is 8, we want CLOCK_CONF_SECOND ticks / sec: \
+   * 32768 = 8 * CLOCK_CONF_SECOND * OCR2A, less 1 for CTC mode\
    */ \
-  OCR2A = 32; \
+  OCR2A = 32768/8/CLOCK_CONF_SECOND - 1; \
 \
   /* 								\
    * Set timer control register: 	\
@@ -124,11 +124,11 @@
 \
   /*						  \
    * Set comparison register: \
-   * Crystal freq. is 8000000,\
-   * pre-scale factor is 1024, we want 125 ticks / sec: \
-   * 8000000 = 1024 * 126.01 * 62, less 1 for CTC mode \
+   * Crystal freq. is F_CPU,\
+   * pre-scale factor is 1024, we want CLOCK_CONF_SECOND ticks / sec: \
+   * F_CPU = 1024 * CLOCK_CONF_SECOND * OCR2A, less 1 for CTC mode \
    */ \
-  OCR0A = 61; \
+  OCR0A = F_CPU/1024UL/CLOCK_CONF_SECOND - 1; \
 \
   /* 								\
    * Set timer control register: 	\
@@ -148,6 +148,101 @@
   TIMSK0 = _BV (OCIE0A);
 #endif /* AVR_CONF_USE32KCRYSTAL */
 
+#elif defined (__AVR_ATmega644__) || defined (__AVR_ATmega328P__)
+
+#define OCRSetup() \
+  /* Set counter to zero */   \
+  TCNT0 = 0;   \
+\
+  /*   \
+   * Set comparison register: \
+   * Crystal freq. is F_CPU,\
+   * pre-scale factor is 256, want CLOCK_CONF_SECOND ticks / sec: \
+   */ \
+  OCR0A = F_CPU/256UL/CLOCK_CONF_SECOND - 1; \
+\
+  /* \
+   * Set timer control register: \
+   *  - prescale: 256 (CS02) \
+   *  - counter reset via comparison register (WGM01) \
+   */ \
+  TCCR0A =  _BV(WGM01); \
+  TCCR0B =  _BV(CS02); \
+\
+  /* Clear interrupt flag register */ \
+  TIFR0 = 0x00; \
+\
+  /* \
+   * Raise interrupt when value in OCR0 is reached. Note that the \
+   * counter value in TCNT0 is cleared automatically. \
+   */ \
+  TIMSK0 = _BV (OCIE0A);
+
+#define AVR_OUTPUT_COMPARE_INT TIMER0_COMPA_vect
+
+#elif defined (__AVR_ATmega8515__) || defined (__AVR_ATmega16__) || defined (__AVR_ATmega32__)
+
+#define AVR_OUTPUT_COMPARE_INT TIMER0_COMP_vect
+
+#define OCRSetup() \
+  /* Set counter to zero */   \
+  TCNT0 = 0;   \
+\
+  /*   \
+   * Set comparison register: \
+   * Crystal freq. is F_CPU,\
+   * pre-scale factor is 256, we want CLOCK_CONF_SECOND ticks / sec: \
+   * F_CPU = 256 * CLOCK_CONF_SECOND * OCR0 \
+   */ \
+  OCR0 = F_CPU/256UL/CLOCK_CONF_SECOND; \
+\
+  /* \
+   * Set timer control register: \
+   *  - prescale: 256 (CS02) \
+   *  - counter reset via comparison register (WGM01) \
+   */ \
+  TCCR0 =  _BV(CS02) |  _BV(WGM01); \
+\
+  /* Clear interrupt flag register */ \
+  TIFR = 0x00; \
+\
+  /* \
+   * Raise interrupt when value in OCR0 is reached. Note that the \
+   * counter value in TCNT0 is cleared automatically. \
+   */ \
+  TIMSK = _BV (OCIE0);
+
+#elif defined (__AVR_ATmega8__)
+
+#define AVR_OUTPUT_COMPARE_INT TIMER2_COMP_vect
+
+#define OCRSetup() \
+  /* Set counter to zero */   \
+  TCNT2 = 0;   \
+\
+  /*   \
+   * Set comparison register: \
+   * Crystal freq. is F_CPU,\
+   * pre-scale factor is 256, we want CLOCK_CONF_SECOND ticks / sec: \
+   * F_CPU = 256 * CLOCK_CONF_SECOND * OCR2 \
+   */ \
+  OCR2 = F_CPU/256UL/CLOCK_CONF_SECOND; \
+\
+  /* \
+   * Set timer control register: \
+   *  - prescale: 256 (CS21 CS22) \
+   *  - counter reset via comparison register (WGM21) \
+   */ \
+  TCCR2 =  _BV(CS22) | _BV(CS21) |  _BV(WGM21); \
+\
+  /* Clear interrupt flag register */ \
+  TIFR = 0x00; \
+\
+  /* \
+   * Raise interrupt when value in OCR2 is reached. Note that the \
+   * counter value in TCNT2 is cleared automatically. \
+   */ \
+  TIMSK = _BV (OCIE2);
 #else
 #error "Setup CPU in clock-avr.h"
 #endif
