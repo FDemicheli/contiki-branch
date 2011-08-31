@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, Swedish Institute of Computer Science.
+ * Copyright (c) 2005, Swedish Institute of Computer Science.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,38 +28,18 @@
  *
  * This file is part of the Contiki operating system.
  *
- * $Id: example-servreg-server.c,v 1.1 2010/06/15 19:00:28 adamdunkels Exp $
+ * Author: Adam Dunkels <adam@sics.se>
+ *
  */
 
-/**
- * \file
- *         A very simple Contiki application showing how Contiki programs look
- * \author
- *         Adam Dunkels <adam@sics.se>
- */
+#ifndef NODE_ID_H
+#define NODE_ID_H
 
-#include "contiki.h"
-#include "contiki-lib.h"
-#include "net/uip-ds6.h"
-#include "servreg-hack.h"
+#include "contiki-conf.h"
 
-#include <stdio.h> /* For printf() */
-/*---------------------------------------------------------------------------*/
-PROCESS(example_servreg_server_process, "Example servreg server");
-AUTOSTART_PROCESSES(&example_servreg_server_process);
-/*---------------------------------------------------------------------------*/
-PROCESS_THREAD(example_servreg_server_process, ev, data)
-{
-  uip_ipaddr_t ipaddr;
-  PROCESS_BEGIN();
+void node_id_restore(void);
+void node_id_burn(uint16_t node_id);
 
-  /* Set a global address. */
-  uip_ip6addr(&ipaddr, 0xaaaa, 0, 0, 0, 0, 0, 0, 0);
-  uip_ds6_set_addr_iid(&ipaddr, &uip_lladdr);
-  uip_ds6_addr_add(&ipaddr, 0, ADDR_AUTOCONF);
+extern uint16_t node_id;
 
-  servreg_hack_register(188, &ipaddr);
-
-  PROCESS_END();
-}
-/*---------------------------------------------------------------------------*/
+#endif /* !NODE_ID_H */

@@ -77,26 +77,45 @@
 #define TIFR TIFR1
 #endif
 
+/* Track flow through rtimer interrupts*/
+#if DEBUGFLOWSIZE&&0
+extern uint8_t debugflowsize,debugflow[DEBUGFLOWSIZE];
+#define DEBUGFLOW(c) if (debugflowsize<(DEBUGFLOWSIZE-1)) debugflow[debugflowsize++]=c
+#else
+#define DEBUGFLOW(c)
+#endif
+
 /*---------------------------------------------------------------------------*/
 #if defined(TCNT3) && RTIMER_ARCH_PRESCALER
 ISR (TIMER3_COMPA_vect) {
+  DEBUGFLOW('/');
   ENERGEST_ON(ENERGEST_TYPE_IRQ);
 
+  /* Disable rtimer interrupts */
   ETIMSK &= ~((1 << OCIE3A) | (1 << OCIE3B) | (1 << TOIE3) |
       (1 << TICIE3) | (1 << OCIE3C));
+
+#if RTIMER_CONF_NESTED_INTERRUPTS
+  /* Enable nested interrupts. Allows radio interrupt during rtimer interrupt. */
+  /* All interrupts are enabled including recursive rtimer, so use with caution */
+  sei();
+#endif
 
   /* Call rtimer callback */
   rtimer_run_next();
 
   ENERGEST_OFF(ENERGEST_TYPE_IRQ);
+  DEBUGFLOW('\\');
 }
 
 #elif RTIMER_ARCH_PRESCALER
 #warning "No Timer3 in rtimer-arch.c - using Timer1 instead"
 ISR (TIMER1_COMPA_vect) {
+  DEBUGFLOW('/');
   TIMSK &= ~((1<<TICIE1)|(1<<OCIE1A)|(1<<OCIE1B)|(1<<TOIE1));
 
   rtimer_run_next();
+  DEBUGFLOW('\\');
 }
 
 #endif
@@ -184,7 +203,7 @@ rtimer_arch_schedule(rtimer_clock_t t)
   uint8_t sreg;
   sreg = SREG;
   cli ();
-
+  DEBUGFLOW(':');
 #ifdef TCNT3
   /* Set compare register */
   OCR3A = t;
