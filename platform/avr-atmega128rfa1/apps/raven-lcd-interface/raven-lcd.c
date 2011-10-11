@@ -101,7 +101,11 @@ void rs232_send(uint8_t port, unsigned char c);
 void
 raven_ping6(void)
 {
-#define PING_GOOGLE 0
+#if UIP_CONF_IPV6_RPL||1
+/* No default router, so pick on someone else */
+#define PING_GOOGLE 1
+seqno++;
+#endif
 
     UIP_IP_BUF->vtc = 0x60;
     UIP_IP_BUF->tcflow = 1;
@@ -220,8 +224,8 @@ void micro_sleep(uint8_t howlong)
        sleep_mode();                            // Sleep
 
        /* Adjust clock.c for the time spent sleeping */
-       extern void clock_adjust_seconds(uint8_t howmany);
-       clock_adjust_seconds(howlong);
+       extern void clock_adjust_ticks(uint16_t howmany);
+       clock_adjust_ticks(howlong * CLOCK_SECOND);
 
 //     if (TIMSK2&(1<<OCIE2A)) break;           // Exit sleep if not awakened by TIMER2
        PRINTF(".");
