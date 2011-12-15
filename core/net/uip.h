@@ -825,13 +825,13 @@ CCIF void uip_send(const void *data, int len);
  *
  * \param rport The remote port number in network byte order.
  *
- * \return The uip_udp_conn structure for the new connection or NULL
+ * \return The uip_udp_conn structure for the new connection, or NULL
  * if no connection could be allocated.
  */
 struct uip_udp_conn *uip_udp_new(const uip_ipaddr_t *ripaddr, u16_t rport);
 
 /**
- * Removed a UDP connection.
+ * Remove a UDP connection.
  *
  * \param conn A pointer to the uip_udp_conn structure for the connection.
  *
@@ -942,7 +942,7 @@ struct uip_udp_conn *uip_udp_new(const uip_ipaddr_t *ripaddr, u16_t rport);
   } while(0)
 
 /**
- * Construct an IPv6 address from eight 8-bit words.
+ * Construct an IPv6 address from sixteen 8-bit words.
  *
  * This function constructs an IPv6 address.
  *
@@ -969,7 +969,7 @@ struct uip_udp_conn *uip_udp_new(const uip_ipaddr_t *ripaddr, u16_t rport);
 
 
 /**
- * Copy an IP address to another IP address.
+ * Copy an IP address from one place to another.
  *
  * Copies an IP address from one place to another.
  *
@@ -1001,7 +1001,7 @@ struct uip_udp_conn *uip_udp_new(const uip_ipaddr_t *ripaddr, u16_t rport);
 
  uip_ipaddr(&ipaddr1, 192,16,1,2);
  if(uip_ipaddr_cmp(&ipaddr2, &ipaddr1)) {
- printf("They are the same");
+  printf("They are the same");
  }
  \endcode
  *
@@ -1201,7 +1201,7 @@ struct uip_udp_conn *uip_udp_new(const uip_ipaddr_t *ripaddr, u16_t rport);
 #endif /* UIP_HTONS */
 
 /**
- * Convert 16-bit quantity from host byte order to network byte order.
+ * Convert a 16-bit quantity from host byte order to network byte order.
  *
  * This function is primarily used for converting variables from host
  * byte order to network byte order. For converting constants to
@@ -1407,11 +1407,11 @@ struct uip_stats {
 			     IP length, high byte. */
     uip_stats_t lblenerr; /**< Number of packets dropped due to wrong
 			     IP length, low byte. */
-    uip_stats_t fragerr;  /**< Number of packets dropped since they
+    uip_stats_t fragerr;  /**< Number of packets dropped because they
 			     were IP fragments. */
     uip_stats_t chkerr;   /**< Number of packets dropped due to IP
 			     checksum errors. */
-    uip_stats_t protoerr; /**< Number of packets dropped since they
+    uip_stats_t protoerr; /**< Number of packets dropped because they
 			     were neither ICMP, UDP nor TCP. */
   } ip;                   /**< IP statistics. */
   struct {
@@ -1432,10 +1432,10 @@ struct uip_stats {
 			     checksum. */
     uip_stats_t ackerr;   /**< Number of TCP segments with a bad ACK
 			     number. */
-    uip_stats_t rst;      /**< Number of recevied TCP RST (reset) segments. */
+    uip_stats_t rst;      /**< Number of received TCP RST (reset) segments. */
     uip_stats_t rexmit;   /**< Number of retransmitted TCP segments. */
-    uip_stats_t syndrop;  /**< Number of dropped SYNs due to too few
-			     connections was avaliable. */
+    uip_stats_t syndrop;  /**< Number of dropped SYNs because too few
+			     connections were available. */
     uip_stats_t synrst;   /**< Number of SYNs for closed ports,
 			     triggering a RST. */
   } tcp;                  /**< TCP statistics. */
@@ -1770,6 +1770,17 @@ typedef struct uip_ext_hdr_opt_padn {
   u8_t opt_len;
 } uip_ext_hdr_opt_padn;
 
+#if UIP_CONF_IPV6_RPL
+/* RPL option */
+typedef struct uip_ext_hdr_opt_rpl {
+  u8_t opt_type;
+  u8_t opt_len;
+  u8_t flags;
+  u8_t instance;
+  u16_t senderrank;
+} uip_ext_hdr_opt_rpl;
+#endif /* UIP_CONF_IPV6_RPL */
+
 /* TCP header */
 struct uip_tcp_hdr {
   u16_t srcport;
@@ -1840,6 +1851,10 @@ struct uip_udp_hdr {
 /** \brief  Destination and Hop By Hop extension headers option types */
 #define UIP_EXT_HDR_OPT_PAD1  0
 #define UIP_EXT_HDR_OPT_PADN  1
+#if UIP_CONF_IPV6_RPL
+#define UIP_EXT_HDR_OPT_RPL   0x63
+#endif /* UIP_CONF_IPV6_RPL */
+
 /** @} */
 
 /** @{ */
@@ -1897,8 +1912,13 @@ struct uip_udp_hdr {
  */
 #define uip_l2_l3_hdr_len (UIP_LLH_LEN + UIP_IPH_LEN + uip_ext_len)
 #define uip_l2_l3_icmp_hdr_len (UIP_LLH_LEN + UIP_IPH_LEN + uip_ext_len + UIP_ICMPH_LEN)
+#define uip_l2_l3_udp_hdr_len (UIP_LLH_LEN + UIP_IPH_LEN + uip_ext_len + UIP_UDPH_LEN)
+#define uip_l2_l3_tcp_hdr_len (UIP_LLH_LEN + UIP_IPH_LEN + uip_ext_len + UIP_TCPH_LEN)
+
 #define uip_l3_hdr_len (UIP_IPH_LEN + uip_ext_len)
 #define uip_l3_icmp_hdr_len (UIP_IPH_LEN + uip_ext_len + UIP_ICMPH_LEN)
+#define uip_l3_udp_hdr_len (UIP_IPH_LEN + uip_ext_len + UIP_UDPH_LEN)
+#define uip_l3_tcp_hdr_len (UIP_IPH_LEN + uip_ext_len + UIP_TCPH_LEN)
 #endif /*UIP_CONF_IPV6*/
 
 
