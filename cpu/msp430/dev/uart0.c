@@ -34,11 +34,7 @@
  */
 
 #include <stdlib.h>
-#include <io.h>
-#include <signal.h>
-
-#include <stdio.h>
-
+#include "contiki.h"
 #include "sys/energest.h"
 #include "dev/uart0.h"
 #include "dev/watchdog.h"
@@ -59,12 +55,8 @@ static volatile uint8_t transmitting;
 #ifdef UART0_CONF_RX_WITH_DMA
 #define RX_WITH_DMA UART0_CONF_RX_WITH_DMA
 #else /* UART0_CONF_RX_WITH_DMA */
-#define RX_WITH_DMA 0
+#define RX_WITH_DMA 1
 #endif /* UART0_CONF_RX_WITH_DMA */
-
-#if RX_WITH_DMA
-#warning RX_WITH_DMA ENABLED - WILL NOT WORK WITH MSPSIM / COOJA!
-#endif /* RX_WITH_DMA */
 
 #if TX_WITH_INTERRUPT
 #define TXBUFSIZE 128
@@ -248,7 +240,12 @@ uart0_init(unsigned long ubr)
 
 /*---------------------------------------------------------------------------*/
 #if !RX_WITH_DMA
+#ifdef __IAR_SYSTEMS_ICC__
+#pragma vector=UART0RX_VECTOR
+__interrupt void
+#else
 interrupt(UART0RX_VECTOR)
+#endif
 uart0_rx_interrupt(void)
 {
   uint8_t c;
