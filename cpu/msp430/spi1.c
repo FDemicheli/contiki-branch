@@ -29,8 +29,6 @@
  * @(#)$Id: $
  */
 
-#include <io.h>
-
 #include "contiki-conf.h"
 
 /*
