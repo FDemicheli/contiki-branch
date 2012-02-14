@@ -43,9 +43,9 @@
 #include "net/rpl/rpl.h"
 
 #include "net/netstack.h"
-#ifndef CONTIKI_TARGET_WSN430
+#if PLATFORM_HAS_BUTTON
 #include "dev/button-sensor.h"
-#endif /* CONTIKI_TARGET_WSN430 */
+#endif /* PLATFORM_HAS_BUTTON */
 #include "dev/slip.h"
 
 #include <stdio.h>
@@ -232,9 +232,9 @@ PROCESS_THREAD(border_router_process, ev, data)
 
   PROCESS_PAUSE();
 
-#ifndef CONTIKI_TARGET_WSN430
+#if PLATFORM_HAS_BUTTON
   SENSORS_ACTIVATE(button_sensor);
-#endif /* CONTIKI_TARGET_WSN430 */
+#endif /* PLATFORM_HAS_BUTTON */
 
   PRINTF("RPL-Border router started\n");
 
@@ -263,12 +263,12 @@ PROCESS_THREAD(border_router_process, ev, data)
 
   while(1) {
     PROCESS_YIELD();
-#ifndef CONTIKI_TARGET_WSN430
+#if PLATFORM_HAS_BUTTON
     if (ev == sensors_event && data == &button_sensor) {
       PRINTF("Initiating global repair\n");
       rpl_repair_root(RPL_DEFAULT_INSTANCE);
     }
-#endif /* CONTIKI_TARGET_WSN430 */
+#endif /* PLATFORM_HAS_BUTTON */
   }
 
   PROCESS_END();
