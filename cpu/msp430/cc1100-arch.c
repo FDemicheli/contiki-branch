@@ -41,9 +41,6 @@
  * $Id: $
  */
 
-#include <io.h>
-#include <signal.h>
-
 #include "contiki.h"
 #include "contiki-net.h"
 
@@ -51,7 +48,13 @@
 #include "dev/cc1100.h"
 
 /*---------------------------------------------------------------------------*/
+#ifdef __IAR_SYSTEMS_ICC__
+#pragma vector=CC1100_IRQ_VECTOR
+__interrupt void
+#else
 interrupt(CC1100_IRQ_VECTOR)
+#endif
+
 cc1100_port1_interrupt(void)
 {
   ENERGEST_ON(ENERGEST_TYPE_IRQ);

@@ -44,6 +44,15 @@
  * Definitions below are dictated by the hardware and not really
  * changeable!
  */
+/* Platform WSN430 */
+#define WSN430 1
+
+#define PLATFORM_HAS_LEDS    1
+#define PLATFORM_HAS_BUTTON  0
+#define PLATFORM_HAS_LIGHT   0
+#define PLATFORM_HAS_BATTERY 1
+#define PLATFORM_HAS_SHT11   0
+
 /* CPU target speed in Hz */
 #define F_CPU 3900000uL /*2457600uL*/
 
@@ -55,10 +64,7 @@
 #define CCIF
 #define CLIF
 
-#define CC_CONF_INLINE inline
-
 #define HAVE_STDINT_H
-#define MSP430_MEMCPY_WORKAROUND 1
 #include "msp430def.h"
 
 
@@ -66,6 +72,13 @@
 typedef unsigned short uip_stats_t;
 typedef unsigned long clock_time_t;
 typedef unsigned long off_t;
+
+/* the low-level radio driver */
+#if WITH_CC1100
+#define NETSTACK_CONF_RADIO   cc1100_driver
+#elif WITH_CC2420 /* WITH_CC1100 */
+#define NETSTACK_CONF_RADIO   cc2420_driver
+#endif /* WITH_CC2420 */
 
 /* LED ports */
 #define LEDS_PxDIR P5DIR

@@ -43,6 +43,9 @@
 #include "net/rpl/rpl.h"
 
 #include "net/netstack.h"
+#ifndef CONTIKI_TARGET_WSN430
+#include "dev/button-sensor.h"
+#endif /* CONTIKI_TARGET_WSN430 */
 #include "dev/slip.h"
 
 #include <stdio.h>
@@ -224,12 +227,23 @@ PROCESS_THREAD(border_router_process, ev, data)
   rpl_dag_t *dag;
 
   PROCESS_BEGIN();
+
   prefix_set = 0;
 
   PROCESS_PAUSE();
 
+#ifndef CONTIKI_TARGET_WSN430
+  SENSORS_ACTIVATE(button_sensor);
+#endif /* CONTIKI_TARGET_WSN430 */
+
   PRINTF("RPL-Border router started\n");
 
+   /* The border router runs with a 100% duty cycle in order to ensure high
+     packet reception rates.
+     Note if the MAC RDC is not turned off now, aggressive power management of the
+     cpu will interfere with establishing the SLIP connection */
+  NETSTACK_MAC.off(1);
+ 
   /* Request prefix until it has been received */
   while(!prefix_set) {
     etimer_set(&et, CLOCK_SECOND);
@@ -247,12 +261,14 @@ PROCESS_THREAD(border_router_process, ev, data)
   print_local_addresses();
 #endif
 
-  /* The border router runs with a 100% duty cycle in order to ensure high
-     packet reception rates. */
-  NETSTACK_MAC.off(1);
-
   while(1) {
     PROCESS_YIELD();
+#ifndef CONTIKI_TARGET_WSN430
+    if (ev == sensors_event && data == &button_sensor) {
+      PRINTF("Initiating global repair\n");
+      rpl_repair_root(RPL_DEFAULT_INSTANCE);
+    }
+#endif /* CONTIKI_TARGET_WSN430 */
   }
 
   PROCESS_END();

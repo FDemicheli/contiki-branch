@@ -29,14 +29,9 @@
  * @(#)$Id: $
  */
 
-#include <signal.h>
 #include <stdio.h>
 #include <string.h>
-
-#include <io.h>
-
 #include "contiki.h"
-
 #if WITH_CC1100
 #include "dev/cc1100.h"
 #elif WITH_CC2420 /* WITH_CC1100 */

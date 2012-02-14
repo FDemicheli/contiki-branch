@@ -33,7 +33,6 @@
  * Machine dependent MSP430 UART0 code.
  */
 
-#include <stdlib.h>
 #include "contiki.h"
 #include "sys/energest.h"
 #include "dev/uart0.h"
@@ -151,7 +150,7 @@ uart0_init(unsigned long ubr)
   UCTL0 = SWRST | CHAR;                 /* 8-bit character, UART mode */
 
 #if 0
-   U0RCTL &= ~URXEIE; /* even erroneous characters trigger interrupts */
+  U0RCTL &= ~URXEIE; /* even erroneous characters trigger interrupts */
 #endif
 
   UTCTL0 = SSEL1;                       /* UCLK = MCLK */
@@ -234,10 +233,7 @@ uart0_init(unsigned long ubr)
 
   msp430_add_lpm_req(MSP430_REQUIRE_LPM1);
 #endif /* RX_WITH_DMA */
-
 }
-
-
 /*---------------------------------------------------------------------------*/
 #if !RX_WITH_DMA
 #ifdef __IAR_SYSTEMS_ICC__
@@ -277,7 +273,12 @@ uart0_rx_interrupt(void)
 #endif /* !RX_WITH_DMA */
 /*---------------------------------------------------------------------------*/
 #if TX_WITH_INTERRUPT
+#ifdef __IAR_SYSTEMS_ICC__
+#pragma vector=UART0TX_VECTOR
+__interrupt void
+#else
 interrupt(UART0TX_VECTOR)
+#endif
 uart0_tx_interrupt(void)
 {
   ENERGEST_ON(ENERGEST_TYPE_IRQ);

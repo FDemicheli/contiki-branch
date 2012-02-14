@@ -1,31 +1,17 @@
 # $Id: $
 
-ARCH=spi1.c ds2411.c xmem.c node-id.c sensors.c cfs-coffee.c \
-     adc-sensors.c uip-ipchksum.c \
-     uart0.c slip_uart0.c uart0-putchar.c \
-     battery-sensor.c temperature-sensor.c
+# TODO: Drivers for sensors still need to be developed.
+# CONTIKI_TARGET_SOURCEFILES += contiki-wsn430-platform.c \
+CONTIKI_TARGET_SOURCEFILES += \
+	battery-sensor.c \
+	radio-sensor.c
 
 WITH_CC1100=1
+# WITH_CC2420=1
 
-ifdef WITH_CC1100
-ARCH+= cc1100.c cc1100-arch.c
-CFLAGS += -DWITH_CC1100=1
-endif
-ifdef WITH_CC2420
-ARCH+= cc2420.c cc2420-aes.c cc2420-arch.c cc2420-arch-sfd.c
-CFLAGS += -DWITH_CC2420=1
+ifndef SMALL
+SMALL=1
 endif
 
-CONTIKI_TARGET_DIRS = . dev apps net
-ifndef CONTIKI_TARGET_MAIN
-CONTIKI_TARGET_MAIN = contiki-wsn430-main.c
-endif
+include $(CONTIKI)/platform/wsn430/Makefile.common
 
-ifdef UIP_CONF_IPV6
-CFLAGS += -DWITH_UIP6=1
-endif
-
-CONTIKI_TARGET_SOURCEFILES += $(ARCH) $(UIPDRIVERS) $(CONTIKI_TARGET_MAIN)
-
-MCU=msp430x1611
-include $(CONTIKI)/cpu/msp430/Makefile.msp430
