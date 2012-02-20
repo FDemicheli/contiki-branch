@@ -79,7 +79,7 @@ handle_rxdma_timer(void *ptr)
   while(last_size != size) {
 /*     printf("read: %c [%d,%d]\n", (unsigned char)rxbuf[RXBUFSIZE - last_size], */
 /* 	   last_size, size); */
-    uart1_input_handler((unsigned char)rxbuf[RXBUFSIZE - last_size]);
+    uart0_input_handler((unsigned char)rxbuf[RXBUFSIZE - last_size]);
     last_size--;
     if(last_size == 0) last_size = RXBUFSIZE;
   }
