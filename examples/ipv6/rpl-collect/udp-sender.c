@@ -34,7 +34,7 @@
 #include "net/neighbor-info.h"
 #include "net/rpl/rpl.h"
 #include "dev/serial-line.h"
-#if CONTIKI_TARGET_Z1
+#if CONTIKI_TARGET_Z1 || CONTIKI_TARGET_WSN430
 #include "dev/uart0.h"
 #else
 #include "dev/uart1.h"
@@ -164,7 +164,7 @@ collect_common_send(void)
 void
 collect_common_net_init(void)
 {
-#if CONTIKI_TARGET_Z1
+#if CONTIKI_TARGET_Z1 || CONTIKI_TARGET_WSN430
   uart0_set_input(serial_line_input_byte);
 #else
   uart1_set_input(serial_line_input_byte);
