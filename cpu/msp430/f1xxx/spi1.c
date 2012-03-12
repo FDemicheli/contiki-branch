@@ -26,7 +26,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE. 
  *
- * @(#)$Id: $
  */
 
 #include "contiki-conf.h"
@@ -48,11 +47,12 @@ unsigned char spi_busy = 0;
 void
 spi_init(void)
 {
+/*
   static unsigned char spi_inited = 0;
 
   if (spi_inited)
     return;
-
+*/
   /* Initalize ports for communication with SPI units. */
 
   U1CTL  = CHAR + SYNC + MM + SWRST; /* SW  reset,8-bit transfer, SPI master */

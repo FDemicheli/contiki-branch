@@ -41,6 +41,9 @@
  *
  * $Id: $
  */
+/*
+ * This code is almost device independent and should be easy to port.
+ */
 
 #include <string.h>
 
@@ -48,8 +51,6 @@
 
 #if defined(__AVR__)
 #include <avr/io.h>
-#elif defined(__MSP430__)
-#include <io.h>
 #endif
 
 #include "watchdog.h"
@@ -138,25 +139,26 @@ static int cc1100_send(const void *data, unsigned short len);
 static int cc1100_receiving_packet(void);
 static int pending_packet(void);
 static int cc1100_cca(void);
-static int detected_energy(void);
+/*static int detected_energy(void);*/
 
 int16_t cc1100_last_rssi;
 uint8_t cc1100_last_lqi;
 
-const struct radio_driver cc1100_driver = {
-  cc1100_init,
-  cc1100_prepare,
-  cc1100_transmit,
-  cc1100_send,
-  cc1100_read,
-  /* cc1100_set_channel, */
-  /* detected_energy, */
-  cc1100_cca,
-  cc1100_receiving_packet,
-  pending_packet,
-  cc1100_on,
-  cc1100_off,
-};
+const struct radio_driver cc1100_driver =
+  {
+    cc1100_init,
+    cc1100_prepare,
+    cc1100_transmit,
+    cc1100_send,
+    cc1100_read,
+    /* cc1100_set_channel, */
+    /* detected_energy, */
+    cc1100_cca,
+    cc1100_receiving_packet,
+    pending_packet,
+    cc1100_on,
+    cc1100_off,
+  };
 
 static uint8_t receive_on;
 
@@ -909,11 +911,13 @@ cc1100_rssi(void)
  * \brief Get the current RSSI.
  * \return The RSSI value in dB.
  */
+/*
 static int
 detected_energy(void)
 {
   return cc1100_rssi();
 }
+*/
 /*---------------------------------------------------------------------------*/
 /**
  * \brief Check if the current CCA value is valid.

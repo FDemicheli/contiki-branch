@@ -46,16 +46,10 @@
 
 #include "dev/spi.h"
 #include "dev/cc1100.h"
+#include "isr_compat.h"
 
 /*---------------------------------------------------------------------------*/
-#ifdef __IAR_SYSTEMS_ICC__
-#pragma vector=CC1100_IRQ_VECTOR
-__interrupt void
-#else
-interrupt(CC1100_IRQ_VECTOR)
-#endif
-
-cc1100_port1_interrupt(void)
+ISR(CC1100_IRQ, cc1100_port1_interrupt)
 {
   ENERGEST_ON(ENERGEST_TYPE_IRQ);
 

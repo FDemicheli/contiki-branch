@@ -39,6 +39,7 @@
 #include "dev/watchdog.h"
 #include "sys/ctimer.h"
 #include "lib/ringbuf.h"
+#include "isr_compat.h"
 
 static int (*uart0_input_handler)(unsigned char c);
 static volatile uint8_t rx_in_progress;
@@ -236,13 +237,7 @@ uart0_init(unsigned long ubr)
 }
 /*---------------------------------------------------------------------------*/
 #if !RX_WITH_DMA
-#ifdef __IAR_SYSTEMS_ICC__
-#pragma vector=UART0RX_VECTOR
-__interrupt void
-#else
-interrupt(UART0RX_VECTOR)
-#endif
-uart0_rx_interrupt(void)
+ISR(UART0RX, uart0_rx_interrupt)
 {
   uint8_t c;
   ENERGEST_ON(ENERGEST_TYPE_IRQ);
@@ -273,13 +268,7 @@ uart0_rx_interrupt(void)
 #endif /* !RX_WITH_DMA */
 /*---------------------------------------------------------------------------*/
 #if TX_WITH_INTERRUPT
-#ifdef __IAR_SYSTEMS_ICC__
-#pragma vector=UART0TX_VECTOR
-__interrupt void
-#else
-interrupt(UART0TX_VECTOR)
-#endif
-uart0_tx_interrupt(void)
+ISR(UART0TX, uart0_tx_interrupt)
 {
   ENERGEST_ON(ENERGEST_TYPE_IRQ);
 
