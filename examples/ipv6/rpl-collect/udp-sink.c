@@ -35,9 +35,11 @@
 #include "net/rime/rimeaddr.h"
 
 #include "net/netstack.h"
+#if PLATFORM_HAS_BUTTON
 #include "dev/button-sensor.h"
+#endif
 #include "dev/serial-line.h"
-#if CONTIKI_TARGET_Z1
+#if CONTIKI_TARGET_Z1 || CONTIKI_TARGET_WSN430
 #include "dev/uart0.h"
 #else
 #include "dev/uart1.h"
@@ -82,7 +84,7 @@ collect_common_send(void)
 void
 collect_common_net_init(void)
 {
-#if CONTIKI_TARGET_Z1
+#if CONTIKI_TARGET_Z1 || CONTIKI_TARGET_WSN430
   uart0_set_input(serial_line_input_byte);
 #else
   uart1_set_input(serial_line_input_byte);
@@ -140,7 +142,9 @@ PROCESS_THREAD(udp_server_process, ev, data)
 
   PROCESS_PAUSE();
 
+#if PLATFORM_HAS_BUTTON
   SENSORS_ACTIVATE(button_sensor);
+#endif
 
   PRINTF("UDP server started\n");
 
@@ -178,9 +182,11 @@ PROCESS_THREAD(udp_server_process, ev, data)
     PROCESS_YIELD();
     if(ev == tcpip_event) {
       tcpip_handler();
+#if PLATFORM_HAS_BUTTON
     } else if (ev == sensors_event && data == &button_sensor) {
       PRINTF("Initiaing global repair\n");
       rpl_repair_root(RPL_DEFAULT_INSTANCE);
+#endif
     }
   }
 

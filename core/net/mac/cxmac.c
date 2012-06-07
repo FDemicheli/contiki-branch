@@ -156,27 +156,25 @@ static volatile unsigned char someone_is_sending = 0;
 static volatile unsigned char we_are_sending = 0;
 static volatile unsigned char radio_is_on = 0;
 
-#undef LEDS_ON
-#undef LEDS_OFF
-#undef LEDS_TOGGLE
-
-#define LEDS_ON(x) leds_on(x)
-#define LEDS_OFF(x) leds_off(x)
-#define LEDS_TOGGLE(x) leds_toggle(x)
 #define DEBUG 0
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
 #define PRINTDEBUG(...) printf(__VA_ARGS__)
 #else
-#undef LEDS_ON
-#undef LEDS_OFF
-#undef LEDS_TOGGLE
-#define LEDS_ON(x)
-#define LEDS_OFF(x)
-#define LEDS_TOGGLE(x)
 #define PRINTF(...)
 #define PRINTDEBUG(...)
+#endif
+
+#define DEBUG_LEDS DEBUG
+#undef LEDS_ON
+#undef LEDS_OFF
+#if DEBUG_LEDS
+#define LEDS_ON(x) leds_on(x)
+#define LEDS_OFF(x) leds_off(x)
+#else
+#define LEDS_ON(x)
+#define LEDS_OFF(x)
 #endif
 
 #if CXMAC_CONF_ANNOUNCEMENTS
@@ -415,7 +413,7 @@ send_packet(void)
   rtimer_clock_t t;
   rtimer_clock_t encounter_time = 0;
   int strobes;
-  struct cxmac_hdr *hdr;
+  struct cxmac_hdr hdr;
   int got_strobe_ack = 0;
   uint8_t strobe[MAX_STROBE_SIZE];
   int strobe_len, len;
@@ -565,8 +563,8 @@ send_packet(void)
 	if(len > 0) {
 	  packetbuf_set_datalen(len);
 	  if(NETSTACK_FRAMER.parse() >= 0) {
-	    hdr = packetbuf_dataptr();
-	    if(hdr->dispatch == DISPATCH && hdr->type == TYPE_STROBE_ACK) {
+	    memcpy(&hdr, packetbuf_dataptr(), sizeof(hdr));
+	    if(hdr.dispatch == DISPATCH && hdr.type == TYPE_STROBE_ACK) {
 	      if(rimeaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_RECEIVER),
 			      &rimeaddr_node_addr)) {
 		/* We got an ACK from the receiver, so we can immediately send
@@ -576,7 +574,7 @@ send_packet(void)
 	      } else {
 		PRINTDEBUG("cxmac: strobe ack for someone else\n");
 	      }
-	    } else /*if(hdr->dispatch == DISPATCH && hdr->type == TYPE_STROBE)*/ {
+	    } else /*if(hdr.dispatch == DISPATCH && hdr.type == TYPE_STROBE)*/ {
 	      PRINTDEBUG("cxmac: strobe from someone else\n");
 	      collisions++;
 	    }

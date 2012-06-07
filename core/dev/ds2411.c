@@ -55,7 +55,7 @@
 
 unsigned char ds2411_id[8];
 
-#ifdef CONTIKI_TARGET_SKY
+#if defined(CONTIKI_TARGET_SKY) || defined(CONTIKI_TARGET_WSN430)
 /* 1-wire is at p2.4 */
 #define PIN BV(4)
 
@@ -95,7 +95,7 @@ unsigned char ds2411_id[8];
  */
 #define udelay_6() { _NOP(); _NOP(); _NOP(); _NOP(); _NOP(); _NOP(); _NOP(); }
 
-#endif /* CONTIKI_TARGET_SKY */
+#endif /* CONTIKI_TARGET_SKY || CONTIKI_TARGET_WSN430 */
 
 /*
  * Recommended delay times in us.
