@@ -149,7 +149,7 @@ PROCESS_THREAD(udp_client_process, ev, data)
     if(etimer_expired(&et)) {
       timeout_handler();
       etimer_restart(&et);
-    } else if(ev == tcpip_event) {
+    } else if(ev == tcpip_event) { //tcpip_event, i.e. an event called from the uIPv6 stack
       tcpip_handler();
     }
   }

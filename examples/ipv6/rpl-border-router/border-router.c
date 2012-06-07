@@ -35,6 +35,8 @@
  *         Nicolas Tsiftes <nvt@sics.se>
  */
 
+//Questa applicazione crea un DAG RPL e implementa un server web
+
 #include "contiki.h"
 #include "contiki-lib.h"
 #include "contiki-net.h"
@@ -307,7 +309,7 @@ print_local_addresses(void)
 }
 /*---------------------------------------------------------------------------*/
 void
-request_prefix(void)
+request_prefix(void)//chiede un prefisso IPv6 ad una rete esterna
 {
   /* mess up uip_buf with a dirty request... */
   uip_buf[0] = '?';
@@ -353,7 +355,8 @@ PROCESS_THREAD(border_router_process, ev, data)
      packet reception rates.
      Note if the MAC RDC is not turned off now, aggressive power management of the
      cpu will interfere with establishing the SLIP connection */
-  NETSTACK_MAC.off(1);
+   
+NETSTACK_MAC.off(1);   
 #endif
  
   /* Request prefix until it has been received */
@@ -389,3 +392,4 @@ PROCESS_THREAD(border_router_process, ev, data)
   PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
+

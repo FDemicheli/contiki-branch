@@ -40,7 +40,7 @@
 
 #define MAX_PAYLOAD_LEN 120
 
-static struct uip_udp_conn *server_conn;
+static struct uip_udp_conn *server_conn;//server_conn holds the UDP connection informations
 
 PROCESS(udp_server_process, "UDP server process");
 AUTOSTART_PROCESSES(&udp_server_process);
@@ -51,17 +51,29 @@ tcpip_handler(void)
   static int seq_id;
   char buf[MAX_PAYLOAD_LEN];
 
+ /*if(uip_newdata()) {
+    ((char *)uip_appdata)[uip_datalen()] = 0;
+    PRINTF("Server received: '%s' from ", (char *)uip_appdata);} 
+    
+uip_newdata check if there is new data avalaible. The uip_newdata() function responds with a boolean expressing 
+whether there is new data available or not. The function then proceeds to display this data by casting the uip_appdata, 
+which holds the data to a character array.
+*/   
   if(uip_newdata()) {
     ((char *)uip_appdata)[uip_datalen()] = 0;
     PRINTF("Server received: '%s' from ", (char *)uip_appdata);
     PRINT6ADDR(&UIP_IP_BUF->srcipaddr);
     PRINTF("\n");
 
+/*the source IP address using the uip_ipaddr_copy() function in to the server_conn->ripaddr
+variable in order to represent the remote mote’s IP address. The remote mote
+is the destination where a message has to be sent
+*/
     uip_ipaddr_copy(&server_conn->ripaddr, &UIP_IP_BUF->srcipaddr);
     PRINTF("Responding with message: ");
     sprintf(buf, "Hello from the server! (%d)", ++seq_id);
     PRINTF("%s\n", buf);
-
+    
     uip_udp_packet_send(server_conn, buf, strlen(buf));
     /* Restore server connection to allow data from any node */
     memset(&server_conn->ripaddr, 0, sizeof(server_conn->ripaddr));
@@ -101,8 +113,16 @@ PROCESS_THREAD(udp_server_process, ev, data)
 #endif /* UIP_CONF_ROUTER */
 
   print_local_addresses();
-
-  server_conn = udp_new(NULL, UIP_HTONS(3001), NULL);
+/*
+The udp_new  function sets up a new connection.This function creates a new UDP connection with the specified remote endpoint. 
+The format of the function is: 
+                               udp_new(remote_ip_address, port, appstate)
+                               
+remote_ip_address = NULL allow connections from any IP addresses.
+The appstate must be set to NULL, unless you wish to change application state
+ */
+  
+  server_conn = udp_new(NULL, UIP_HTONS(3001), NULL); 
   udp_bind(server_conn, UIP_HTONS(3000));
 
   while(1) {

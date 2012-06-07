@@ -44,7 +44,8 @@
 #include "lib/random.h"
 #include "sys/ctimer.h"
 
-#define DEBUG DEBUG_NONE
+//#define DEBUG DEBUG_NONE
+#define DEBUG DEBUG_PRINT
 #include "net/uip-debug.h"
 
 /************************************************************************/
@@ -83,6 +84,7 @@ new_dio_interval(rpl_instance_t *instance)
   uint32_t time;
 
   /* TODO: too small timer intervals for many cases */
+  //1UL = 1 unsigned long int
   time = 1UL << instance->dio_intcurrent;
 
   /* Convert from milliseconds to CLOCK_TICKS. */
@@ -100,7 +102,7 @@ new_dio_interval(rpl_instance_t *instance)
    * the randomized time and the start time of the next interval.
    */
   instance->dio_next_delay -= time;
-  instance->dio_send = 1;
+  instance->dio_send = 1; /*da rpl.h: dio_send = for keeping track of which mode the timer is in */
 
 #if RPL_CONF_STATS
   /* keep some stats */
@@ -116,10 +118,10 @@ new_dio_interval(rpl_instance_t *instance)
 #endif /* RPL_CONF_STATS */
 
   /* reset the redundancy counter */
-  instance->dio_counter = 0;
+  instance->dio_counter = 0;//la tx è inconsistente e quindi c viene resettata a 0 e I = Imin ??
 
   /* schedule the timer */
-  PRINTF("RPL: Scheduling DIO timer %lu ticks in future (Interval)\n", time);
+  PRINTF("RPL: Scheduling DIO timer %lu ticks in future (Interval)\n", time); //al termine del tempo, viene rivalutata la consistenza del DIO? 
   ctimer_set(&instance->dio_timer, time, &handle_dio_timer, instance);
 }
 /************************************************************************/
@@ -141,23 +143,28 @@ handle_dio_timer(void *ptr)
     }
   }
 
-  if(instance->dio_send) {
+  if(instance->dio_send) { //è diverso da 0
     /* send DIO if counter is less than desired redundancy */
+   //quindi DIO inviato se c < K
     if(instance->dio_counter < instance->dio_redundancy) {
-#if RPL_CONF_STATS
+#if RPL_CONF_STATS /*è diverso da 0*/
       instance->dio_totsend++;
 #endif /* RPL_CONF_STATS */
       dio_output(instance, NULL);
-    } else {
+    } 
+    else {
       PRINTF("RPL: Supressing DIO transmission (%d >= %d)\n",
              instance->dio_counter, instance->dio_redundancy);
     }
-    instance->dio_send = 0;
+    
+    instance->dio_send = 0; //bisognerà ricontrollare che c < K
     PRINTF("RPL: Scheduling DIO timer %lu ticks in future (sent)\n",
            instance->dio_next_delay);
     ctimer_set(&instance->dio_timer, instance->dio_next_delay, handle_dio_timer, instance);
-  } else {
-    /* check if we need to double interval */
+  } 
+  
+  else {
+    /* check if we need to double interval x raggiungere il valore di Imax */
     if(instance->dio_intcurrent < instance->dio_intmin + instance->dio_intdoubl) {
       instance->dio_intcurrent++;
       PRINTF("RPL: DIO Timer interval doubled %d\n", instance->dio_intcurrent);

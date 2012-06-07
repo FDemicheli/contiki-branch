@@ -31,6 +31,18 @@
  * SUCH DAMAGE.
  *
  * This file is part of the Contiki operating system.
+--------------------------------------------------------------------------- 
+NOTA: 
+ rpl-of-etx.c and rpl-of0.c provide implementations of two objective
+functions. They implement an API specified in the rpl_of_t structure.
+The main logic for controlling the topology is in the functions
+calculate_rank() and best_parent(), which you may implement using a
+different set of metrics than the ones provided.
+
+When adding a new objective function module, you need to set RPL_CONF_OF
+correctly (see description in rpl.h), and modify the source file
+inclusion list in Makefile.rpl.
+---------------------------------------------------------------------------- 
  */
 /**
  * \file
@@ -38,7 +50,7 @@
  *
  * \author Joakim Eriksson <joakime@sics.se>, Nicolas Tsiftes <nvt@sics.se>
  */
-
+//Implementazione funzione obiettivo di default
 #include "net/rpl/rpl-private.h"
 
 #define DEBUG DEBUG_NONE

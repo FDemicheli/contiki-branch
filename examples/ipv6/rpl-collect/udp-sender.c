@@ -223,7 +223,7 @@ PROCESS_THREAD(udp_client_process, ev, data)
   client_conn = udp_new(NULL, UIP_HTONS(UDP_SERVER_PORT), NULL);
   udp_bind(client_conn, UIP_HTONS(UDP_CLIENT_PORT));
 
-  PRINTF("Created a connection with the server ");
+  PRINTF("Created a connection with the server ");//crea connessione UDP col server
   PRINT6ADDR(&client_conn->ripaddr);
   PRINTF(" local/remote port %u/%u\n",
         UIP_HTONS(client_conn->lport), UIP_HTONS(client_conn->rport));

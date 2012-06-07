@@ -144,13 +144,15 @@
 #ifdef RPL_CONF_DIO_INTERVAL_MIN
 #define RPL_DIO_INTERVAL_MIN        RPL_CONF_DIO_INTERVAL_MIN
 #else
-#define RPL_DIO_INTERVAL_MIN        12
+//DIO_INTERVAL_MIN = this is the default value used to configure Imin for the DIO trickle timer
+#define RPL_DIO_INTERVAL_MIN        12  //quindi n=12 e ho 2^12 ms =  4096 ms = 4.096 s
 #endif
 
 /* Maximum amount of timer doublings. */
 #ifdef RPL_CONF_DIO_INTERVAL_DOUBLINGS
 #define RPL_DIO_INTERVAL_DOUBLINGS  RPL_CONF_DIO_INTERVAL_DOUBLINGS
 #else
+//DIO_INTERVAL_DOUBLINGS = this is the default value used to configure Imax for the DIO trickle timer
 #define RPL_DIO_INTERVAL_DOUBLINGS  8
 #endif
 
@@ -158,6 +160,7 @@
 #ifdef RPL_CONF_DIO_REDUNDANCY
 #define RPL_DIO_REDUNDANCY          RPL_CONF_DIO_REDUNDANCY
 #else
+//DIO_REDUNDANCY = this is the default value used to configure k for the DIO trickle timer
 #define RPL_DIO_REDUNDANCY          10
 #endif
 
