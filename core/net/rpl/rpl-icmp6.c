@@ -297,7 +297,7 @@ dio_input(void)
 
     switch(subopt_type) {
     case RPL_OPTION_DAG_METRIC_CONTAINER:
-      if(len < 6) {
+      if(len < 8) {
         PRINTF("RPL: Invalid DAG MC, len = %d\n", len);
 	RPL_STAT(rpl_stats.malformed_msgs++);
         return;
@@ -307,10 +307,11 @@ dio_input(void)
       dio.mc.flags |= buffer[i + 4] >> 7;
       dio.mc.aggr = (buffer[i + 4] >> 4) & 0x3;
       dio.mc.prec = buffer[i + 4] & 0xf;
-      dio.mc.length = buffer[i + 5];
+      dio.mc.node_cycle_time = get16(buffer, i + 5);
+      dio.mc.length = buffer[i + 7];
 
       if(dio.mc.type == RPL_DAG_MC_ETX) {
-        dio.mc.obj.etx = get16(buffer, i + 6);
+        dio.mc.obj.etx = get16(buffer, i + 8);
 
         PRINTF("RPL: DAG MC: type %u, flags %u, aggr %u, prec %u, length %u, ETX %u\n",
 	       (unsigned)dio.mc.type,  
@@ -320,12 +321,17 @@ dio_input(void)
 	       (unsigned)dio.mc.length, 
 	       (unsigned)dio.mc.obj.etx);
       } else if(dio.mc.type == RPL_DAG_MC_ENERGY) {
-        dio.mc.obj.energy.flags = buffer[i + 6];
-        dio.mc.obj.energy.energy_est = buffer[i + 7];
+        dio.mc.obj.energy.flags = buffer[i + 8];
+        dio.mc.obj.energy.energy_est = buffer[i + 9];
       } else {
        PRINTF("RPL: Unhandled DAG MC type: %u\n", (unsigned)dio.mc.type);
        return;
       }
+
+      rimeaddr_t macaddr;
+      uip_ds6_get_addr_iid(&from,(uip_lladdr_t *)&macaddr);
+      contikimac_cycle_time_update(&macaddr,dio.mc.node_cycle_time);
+
       break;
     case RPL_OPTION_ROUTE_INFO:
       if(len < 9) {
@@ -459,11 +465,13 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr)
     instance->of->update_metric_container(instance);
 
     buffer[pos++] = RPL_OPTION_DAG_METRIC_CONTAINER;
-    buffer[pos++] = 6;
+    buffer[pos++] = 8; // size of the metric container
     buffer[pos++] = instance->mc.type;
     buffer[pos++] = instance->mc.flags >> 1;
     buffer[pos] = (instance->mc.flags & 1) << 7;
     buffer[pos++] |= (instance->mc.aggr << 4) | instance->mc.prec;
+    set16(buffer, pos, instance->mc.node_cycle_time);
+    pos += 2;
     if(instance->mc.type == RPL_DAG_MC_ETX) {
       buffer[pos++] = 2;
       set16(buffer, pos, instance->mc.obj.etx);

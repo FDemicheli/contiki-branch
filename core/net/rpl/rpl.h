@@ -45,6 +45,8 @@
 #include "net/uip-ds6.h"
 #include "sys/ctimer.h"
 
+#include "net/netstack.h"
+
 /*---------------------------------------------------------------------------*/
 /* The amount of parents that this node has in a particular DAG. */
 #define RPL_PARENT_COUNT(dag)   list_length((dag)->parents)
@@ -97,6 +99,7 @@ struct rpl_metric_container {
   uint8_t aggr;
   uint8_t prec;
   uint8_t length;
+  uint16_t node_cycle_time;
   union metric_object {
     struct rpl_metric_object_energy energy;
     uint16_t etx;

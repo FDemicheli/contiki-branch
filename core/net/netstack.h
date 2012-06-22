@@ -75,6 +75,38 @@
 #endif /* NETSTACK_CONF_RDC_CHANNEL_CHECK_RATE */
 #endif /* NETSTACK_RDC_CHANNEL_CHECK_RATE */
 
+/* CYCLE_TIME for channel cca checks, in rtimer ticks. */
+#ifdef CONTIKIMAC_CONF_CYCLE_RATE
+#define CYCLE_TIME (RTIMER_ARCH_SECOND / CONTIKIMAC_CONF_CYCLE_RATE)
+#define CYCLE_RATE (CONTIKIMAC_CONF_CYCLE_RATE)
+#else
+#define CYCLE_TIME (RTIMER_ARCH_SECOND / NETSTACK_RDC_CHANNEL_CHECK_RATE)
+#define CYCLE_RATE (NETSTACK_RDC_CHANNEL_CHECK_RATE)
+#endif
+
+// if the cycle rate of a node is higher than this, phase optimization to that node will be disabled
+#define APPROX_RADIO_ALWAYS_ON_CYCLE_RATE 64
+#define APPROX_RADIO_ALWAYS_ON_CYCLE_TIME (RTIMER_ARCH_SECOND / APPROX_RADIO_ALWAYS_ON_CYCLE_RATE)
+
+// max cycle time for the whole network (in case different duty cycles)
+#ifdef CONTIKIMAC_CONF_MIN_CYCLE_RATE
+#define MAX_CYCLE_TIME (RTIMER_ARCH_SECOND / CONTIKIMAC_CONF_MIN_CYCLE_RATE)
+#define MIN_CYCLE_RATE (CONTIKIMAC_CONF_MIN_CYCLE_RATE)
+#else
+#define MAX_CYCLE_TIME (CYCLE_TIME)
+#define MIN_CYCLE_RATE (CYCLE_RATE)
+#endif
+
+#if MAX_CYCLE_TIME <= 65535  // save memory
+typedef uint16_t rtimer_cycle_time_t;
+#else
+typedef uint32_t rtimer_cycle_time_t;
+#endif
+
+#include "net/rime/rimeaddr.h"
+void contikimac_cycle_time_update(const rimeaddr_t *addr,rtimer_cycle_time_t newtime);
+rtimer_cycle_time_t contikimac_get_cycle_time_for_routing();
+
 #if (NETSTACK_RDC_CHANNEL_CHECK_RATE & (NETSTACK_RDC_CHANNEL_CHECK_RATE - 1)) != 0
 #error NETSTACK_RDC_CONF_CHANNEL_CHECK_RATE must be a power of two (i.e., 1, 2, 4, 8, 16, 32, 64, ...).
 #error Change NETSTACK_RDC_CONF_CHANNEL_CHECK_RATE in contiki-conf.h, project-conf.h or in your Makefile.

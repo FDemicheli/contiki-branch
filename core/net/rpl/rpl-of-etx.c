@@ -190,6 +190,7 @@ update_metric_container(rpl_instance_t *instance)
   instance->mc.flags = RPL_DAG_MC_FLAG_P;
   instance->mc.aggr = RPL_DAG_MC_AGGR_ADDITIVE;
   instance->mc.prec = 0;
+  instance->mc.node_cycle_time = contikimac_get_cycle_time_for_routing();
 
   dag = instance->current_dag;
 

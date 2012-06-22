@@ -82,11 +82,6 @@
 #define RDC_CONF_MCU_SLEEP           0
 #endif
 
-#if NETSTACK_RDC_CHANNEL_CHECK_RATE >= 64
-#undef WITH_PHASE_OPTIMIZATION
-#define WITH_PHASE_OPTIMIZATION 0
-#endif
-
 #if WITH_CONTIKIMAC_HEADER
 #define CONTIKIMAC_ID 0x00
 
@@ -96,13 +91,6 @@ struct hdr {
 };
 #endif /* WITH_CONTIKIMAC_HEADER */
 
-/* CYCLE_TIME for channel cca checks, in rtimer ticks. */
-#ifdef CONTIKIMAC_CONF_CYCLE_TIME
-#define CYCLE_TIME (CONTIKIMAC_CONF_CYCLE_TIME)
-#else
-#define CYCLE_TIME (RTIMER_ARCH_SECOND / NETSTACK_RDC_CHANNEL_CHECK_RATE)
-#endif
-
 /* CHANNEL_CHECK_RATE is enforced to be a power of two.
  * If RTIMER_ARCH_SECOND is not also a power of two, there will be an inexact
  * number of channel checks per second due to the truncation of CYCLE_TIME.
@@ -110,7 +98,7 @@ struct hdr {
  * do not have the same truncation error.
  * Define SYNC_CYCLE_STARTS to ensure an integral number of checks per second.
  */
-#if RTIMER_ARCH_SECOND & (RTIMER_ARCH_SECOND - 1)
+#if (RTIMER_ARCH_SECOND % CYCLE_TIME) != 0
 #define SYNC_CYCLE_STARTS                    1
 #endif
 
@@ -172,11 +160,11 @@ static int is_receiver_awake = 0;
 
 /* STROBE_TIME is the maximum amount of time a transmitted packet
    should be repeatedly transmitted as part of a transmission. */
-#define STROBE_TIME                        (CYCLE_TIME + 2 * CHECK_TIME)
+#define STROBE_TIME                        (MAX_CYCLE_TIME + 2 * CHECK_TIME)
 
 /* GUARD_TIME is the time before the expected phase of a neighbor that
    a transmitted should begin transmitting packets. */
-#define GUARD_TIME                         10 * CHECK_TIME + CHECK_TIME_TX
+#define GUARD_TIME                         (10 * CHECK_TIME + CHECK_TIME_TX)
 
 /* INTER_PACKET_INTERVAL is the interval between two successive packet transmissions */
 #define INTER_PACKET_INTERVAL              RTIMER_ARCH_SECOND / 5000
@@ -367,6 +355,7 @@ powercycle(struct rtimer *t, void *ptr)
 
 #if SYNC_CYCLE_STARTS
   sync_cycle_start = RTIMER_NOW();
+  sync_cycle_phase = 0;
 #else
   cycle_start = RTIMER_NOW();
 #endif
@@ -378,15 +367,15 @@ powercycle(struct rtimer *t, void *ptr)
 
 #if SYNC_CYCLE_STARTS
     /* Compute cycle start when RTIMER_ARCH_SECOND is not a multiple of CHANNEL_CHECK_RATE */
-    if (sync_cycle_phase++ == NETSTACK_RDC_CHANNEL_CHECK_RATE) {
+    if ((++sync_cycle_phase) >= CYCLE_RATE) {
        sync_cycle_phase = 0;
        sync_cycle_start += RTIMER_ARCH_SECOND;
        cycle_start = sync_cycle_start;
     } else {
-#if (RTIMER_ARCH_SECOND * NETSTACK_RDC_CHANNEL_CHECK_RATE) > 65535
-       cycle_start = sync_cycle_start + ((unsigned long)(sync_cycle_phase*RTIMER_ARCH_SECOND))/NETSTACK_RDC_CHANNEL_CHECK_RATE;
+#if (RTIMER_ARCH_SECOND * CYCLE_RATE) > 65535
+       cycle_start = sync_cycle_start + (((unsigned long)sync_cycle_phase*RTIMER_ARCH_SECOND))/CYCLE_RATE;
 #else
-       cycle_start = sync_cycle_start + (sync_cycle_phase*RTIMER_ARCH_SECOND)/NETSTACK_RDC_CHANNEL_CHECK_RATE;
+       cycle_start = sync_cycle_start + (sync_cycle_phase*RTIMER_ARCH_SECOND)/CYCLE_RATE;
 #endif
     }
 #else
@@ -634,7 +623,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
   if(!is_broadcast && !is_receiver_awake) {
 #if WITH_PHASE_OPTIMIZATION
     ret = phase_wait(&phase_list, packetbuf_addr(PACKETBUF_ADDR_RECEIVER),
-                     CYCLE_TIME, GUARD_TIME,
+                     GUARD_TIME,
                      mac_callback, mac_callback_ptr, buf_list);
     if(ret == PHASE_DEFERRED) {
       return MAC_TX_DEFERRED;
@@ -736,7 +725,6 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
 
     len = 0;
 
-    
     {
       rtimer_clock_t wt;
       rtimer_clock_t txtime;
@@ -904,6 +892,25 @@ recv_burst_off(void *ptr)
 {
   off();
   we_are_receiving_burst = 0;
+}
+/*---------------------------------------------------------------------------*/
+void contikimac_cycle_time_update(const rimeaddr_t * addr,rtimer_cycle_time_t newtime)
+{
+#if WITH_PHASE_OPTIMIZATION
+  if (newtime < APPROX_RADIO_ALWAYS_ON_CYCLE_TIME) {
+    newtime = 0;
+  }
+
+  //printf("contikimac_cycle_time_update: %d source: %u\n",((int)newtime),(int)(addr->u8[7]));
+  cycle_time_update(&phase_list, addr, newtime);
+#endif
+}
+/*---------------------------------------------------------------------------*/
+rtimer_cycle_time_t contikimac_get_cycle_time_for_routing()
+{
+  if (contikimac_keep_radio_on)
+    return 0; // 0 means "radio always on"
+  return CYCLE_TIME;
 }
 /*---------------------------------------------------------------------------*/
 static void

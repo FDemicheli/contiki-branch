@@ -61,6 +61,9 @@ struct phase_queueitem {
 
 #define MAX_NOACKS_TIME       CLOCK_SECOND * 30
 
+#define UNKNOWN_CYCLE_TIME (MAX_CYCLE_TIME + 1)     // no cycle time may be higher than MAX_CYCLE_TIME
+#define UNKNOWN_TIME       (RTIMER_ARCH_SECOND + 1) // phases are saved mod 1 second
+
 MEMB(queued_packets_memb, struct phase_queueitem, PHASE_QUEUESIZE);
 
 #define DEBUG 0
@@ -86,6 +89,17 @@ find_neighbor(const struct phase_list *list, const rimeaddr_t *addr)
 }
 /*---------------------------------------------------------------------------*/
 void
+init_single_phase(struct phase * e)
+{
+  e->time = UNKNOWN_TIME;
+#if PHASE_DRIFT_CORRECT
+  e->drift = 0;
+#endif
+  e->noacks = 0;
+  e->cycle_time = UNKNOWN_CYCLE_TIME;
+}
+/*---------------------------------------------------------------------------*/
+void
 phase_remove(const struct phase_list *list, const rimeaddr_t *neighbor)
 {
   struct phase *e;
@@ -102,6 +116,13 @@ phase_update(const struct phase_list *list,
              int mac_status)
 {
   struct phase *e;
+
+// avoid saving phases higher than one second (all cycle times are divisors of the second)
+#if RTIMER_ARCH_SECOND & (RTIMER_ARCH_SECOND - 1)
+  time %= RTIMER_ARCH_SECOND;
+#else
+  time &= RTIMER_ARCH_SECOND - 1;
+#endif
 
   /* If we have an entry for this neighbor already, we renew it. */
   e = find_neighbor(list, neighbor);
@@ -141,13 +162,36 @@ phase_update(const struct phase_list *list,
         e = list_chop(*list->list);
       }
       rimeaddr_copy(&e->neighbor, neighbor);
+      init_single_phase(e);
       e->time = time;
-#if PHASE_DRIFT_CORRECT
-      e->drift = 0;
-#endif
-      e->noacks = 0;
       list_push(*list->list, e);
     }
+  }
+}
+/*---------------------------------------------------------------------------*/
+void
+cycle_time_update(const struct phase_list *list,
+             const rimeaddr_t *neighbor, rtimer_cycle_time_t cycle_time)
+{
+  struct phase *e;
+
+  /* If we have an entry for this neighbor already, we renew it. */
+  e = find_neighbor(list, neighbor);
+  if(e != NULL) {
+    e->cycle_time = cycle_time;
+  }
+  else {
+    e = memb_alloc(list->memb);
+    if(e == NULL) {
+      PRINTF("phase alloc NULL\n");
+        /* We could not allocate memory for this phase, so we drop
+           the last item on the list and reuse it for our phase. */
+      e = list_chop(*list->list);
+    }
+    rimeaddr_copy(&e->neighbor, neighbor);
+    init_single_phase(e);
+    e->cycle_time = cycle_time; // we only know the cycle time
+    list_push(*list->list, e);
   }
 }
 /*---------------------------------------------------------------------------*/
@@ -169,7 +213,7 @@ send_packet(void *ptr)
 /*---------------------------------------------------------------------------*/
 phase_status_t
 phase_wait(struct phase_list *list,
-           const rimeaddr_t *neighbor, rtimer_clock_t cycle_time,
+           const rimeaddr_t *neighbor,
            rtimer_clock_t guard_time,
            mac_callback_t mac_callback, void *mac_callback_ptr,
            struct rdc_buf_list *buf_list)
@@ -181,7 +225,11 @@ phase_wait(struct phase_list *list,
      time for the next expected phase and setup a ctimer to switch on
      the radio just before the phase. */
   e = find_neighbor(list, neighbor);
-  if(e != NULL) {
+  if(e != NULL && !e->cycle_time) {
+    return PHASE_SEND_NOW;  // the node is always on
+  }
+
+  if(e != NULL && (e->cycle_time != UNKNOWN_CYCLE_TIME) && (e->time != UNKNOWN_TIME)) {
     rtimer_clock_t wait, now, expected, sync;
     clock_time_t ctimewait;
     
@@ -201,30 +249,30 @@ phase_wait(struct phase_list *list,
     
     now = RTIMER_NOW();
 
-    sync = (e == NULL) ? now : e->time;
+    sync = e->time;
 
 #if PHASE_DRIFT_CORRECT
     {
       int32_t s;
-      if(e->drift > cycle_time) {
-        s = e->drift % cycle_time / (e->drift / cycle_time);  /* drift per cycle */
-        s = s * (now - sync) / cycle_time;                    /* estimated drift to now */
-        sync += s;                                            /* add it in */
+      if(e->drift > e->cycle_time) {
+        s = e->drift % e->cycle_time / (e->drift / e->cycle_time);  /* drift per cycle */
+        s = s * (now - sync) / e->cycle_time;                       /* estimated drift to now */
+        sync += s;                                                  /* add it in */
       }
     }
 #endif
 
     /* Check if cycle_time is a power of two */
-    if(!(cycle_time & (cycle_time - 1))) {
+    if(!(e->cycle_time & (e->cycle_time - 1))) {
       /* Faster if cycle_time is a power of two */
-      wait = (rtimer_clock_t)((sync - now) & (cycle_time - 1));
+      wait = (rtimer_clock_t)((sync - now) & (e->cycle_time - 1));
     } else {
       /* Works generally */
-      wait = cycle_time - (rtimer_clock_t)((now - sync) % cycle_time);
+      wait = e->cycle_time - ((rtimer_clock_t)(now - sync) % e->cycle_time);
     }
 
     if(wait < guard_time) {
-      wait += cycle_time;
+      wait += e->cycle_time;
     }
 
     ctimewait = (CLOCK_SECOND * (wait - guard_time)) / RTIMER_ARCH_SECOND;
