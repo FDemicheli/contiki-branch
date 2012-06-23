@@ -106,6 +106,7 @@ typedef uint32_t rtimer_cycle_time_t;
 #include "net/rime/rimeaddr.h"
 void contikimac_cycle_time_update(const rimeaddr_t *addr,rtimer_cycle_time_t newtime);
 rtimer_cycle_time_t contikimac_get_cycle_time_for_routing();
+rtimer_cycle_time_t contikimac_get_average_delay_for_routing(const rimeaddr_t * toNode);
 
 #if (NETSTACK_RDC_CHANNEL_CHECK_RATE & (NETSTACK_RDC_CHANNEL_CHECK_RATE - 1)) != 0
 #error NETSTACK_RDC_CONF_CHANNEL_CHECK_RATE must be a power of two (i.e., 1, 2, 4, 8, 16, 32, 64, ...).

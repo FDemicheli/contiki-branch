@@ -91,6 +91,9 @@ void phase_update(const struct phase_list *list, const rimeaddr_t *neighbor,
 
 void phase_remove(const struct phase_list *list, const rimeaddr_t *neighbor);
 
+rtimer_cycle_time_t phase_get_average_delay(const struct phase_list *list, const rimeaddr_t *neighbor,
+                                       rtimer_clock_t guard_time, rtimer_clock_t my_phase);
+
 void cycle_time_update(const struct phase_list *list,
              const rimeaddr_t *neighbor, rtimer_cycle_time_t cycle_time);
 

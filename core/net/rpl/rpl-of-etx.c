@@ -78,11 +78,15 @@ rpl_of_t rpl_of_etx = {
  */
 #define PARENT_SWITCH_THRESHOLD_DIV	2
 
+#define AVG_DELAY_MAX_DELAY 65535
+#define AVG_DELAY_SWITCH_THRESHOLD (RTIMER_ARCH_SECOND / 3000)
+
 typedef uint16_t rpl_path_metric_t;
 
 static rpl_path_metric_t
 calculate_path_metric(rpl_parent_t *p)
 {
+#if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY)
   if(p == NULL || (p->mc.obj.etx == 0 && p->rank > ROOT_RANK(p->dag->instance))) {
     return MAX_PATH_COST * RPL_DAG_MC_ETX_DIVISOR;
   } else {
@@ -90,6 +94,25 @@ calculate_path_metric(rpl_parent_t *p)
     etx = (etx * RPL_DAG_MC_ETX_DIVISOR) / NEIGHBOR_INFO_ETX_DIVISOR;
     return p->mc.obj.etx + (uint16_t) etx;
   }
+#elif RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY
+  if(p == NULL || (p->mc.obj.avg_delay_to_sink == 0 && p->rank > ROOT_RANK(p->dag->instance))) {
+    return AVG_DELAY_MAX_DELAY;
+  } else {
+    rimeaddr_t macaddr;
+    uip_ds6_get_addr_iid(&(p->addr),(uip_lladdr_t *)&macaddr);
+    long delay = contikimac_get_average_delay_for_routing(&macaddr) >> 4;
+    //printf("calculate_path_metric: %lu to %u",delay,(int)(macaddr.u8[7]));
+
+    delay += p->mc.obj.avg_delay_to_sink;
+    //printf(" total: %lu\n",delay);
+    if (delay > AVG_DELAY_MAX_DELAY) {
+      delay = AVG_DELAY_MAX_DELAY;
+    }
+    return (rpl_path_metric_t)delay;
+  }
+#else
+#error "calculate_path_metric: Not supported."
+#endif
 }
 
 static void
@@ -115,7 +138,13 @@ calculate_rank(rpl_parent_t *p, rpl_rank_t base_rank)
     rank_increase = NEIGHBOR_INFO_FIX2ETX(INITIAL_LINK_METRIC) * RPL_MIN_HOPRANKINC;
   } else {
     /* multiply first, then scale down to avoid truncation effects */
+#if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY)
     rank_increase = NEIGHBOR_INFO_FIX2ETX(p->link_metric * p->dag->instance->min_hoprankinc);
+#elif RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY
+    rank_increase = NEIGHBOR_INFO_FIX2ETX(p->dag->instance->min_hoprankinc);
+#else
+#error "calculate_rank: not supported."
+#endif
     if(base_rank == 0) {
       base_rank = p->rank;
     }
@@ -157,8 +186,14 @@ best_parent(rpl_parent_t *p1, rpl_parent_t *p2)
 
   dag = p1->dag; /* Both parents must be in the same DAG. */
 
+#if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY)
   min_diff = RPL_DAG_MC_ETX_DIVISOR /
              PARENT_SWITCH_THRESHOLD_DIV;
+#elif (RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY)
+  min_diff = AVG_DELAY_SWITCH_THRESHOLD;
+#else
+#error "best_parent: RPL_DAG_MC not supported."
+#endif
 
   p1_metric = calculate_path_metric(p1);
   p2_metric = calculate_path_metric(p2);
@@ -228,6 +263,12 @@ update_metric_container(rpl_instance_t *instance)
 
   instance->mc.obj.energy.flags = type << RPL_DAG_MC_ENERGY_TYPE;
   instance->mc.obj.energy.energy_est = path_metric;
+
+#elif RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY
+
+  instance->mc.type = RPL_DAG_MC_AVG_DELAY;
+  instance->mc.length = sizeof(instance->mc.obj.avg_delay_to_sink);
+  instance->mc.obj.avg_delay_to_sink = path_metric;
 
 #else
 

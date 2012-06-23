@@ -913,6 +913,15 @@ rtimer_cycle_time_t contikimac_get_cycle_time_for_routing()
   return CYCLE_TIME;
 }
 /*---------------------------------------------------------------------------*/
+rtimer_cycle_time_t contikimac_get_average_delay_for_routing(const rimeaddr_t * toNode)
+{
+#if WITH_PHASE_OPTIMIZATION
+  return phase_get_average_delay(&phase_list,toNode,(2 * GUARD_TIME),cycle_start);
+#else
+  return (CYCLE_TIME >> 1) + (2 * GUARD_TIME);
+#endif
+}
+/*---------------------------------------------------------------------------*/
 static void
 input_packet(void)
 {

@@ -195,6 +195,34 @@ cycle_time_update(const struct phase_list *list,
   }
 }
 /*---------------------------------------------------------------------------*/
+rtimer_cycle_time_t phase_get_average_delay(const struct phase_list *list, const rimeaddr_t *neighbor,
+                                       rtimer_clock_t guard_time, rtimer_clock_t my_phase)
+{
+  struct phase * e = find_neighbor(list,neighbor);
+  if (e && e->cycle_time != UNKNOWN_CYCLE_TIME && e->cycle_time != 0) { // cycle time exists and is known
+
+    if (e->cycle_time == CYCLE_TIME) { // same cycle time
+      if (e->time != UNKNOWN_TIME) {   // known phase
+#if (CYCLE_TIME & (CYCLE_TIME >> 1))   // works in general
+        rtimer_cycle_time_t result = ((rtimer_clock_t)(e->time - my_phase)) % CYCLE_TIME;
+#else   // works only if CYCLE_TIME is a power of two
+        rtimer_cycle_time_t result = ((rtimer_clock_t)(e->time - my_phase)) & (CYCLE_TIME - 1);
+#endif
+
+        if (result < guard_time) {
+          result += CYCLE_TIME; // phase too near, we have to send during next cycle
+        }
+
+        return result;          // known phase and cycle time
+      }
+
+      return guard_time; // same cycle time, but unknown phase
+    }
+    return (e->cycle_time >> 1) + guard_time; // different cycle times: average delay: cycle_time / 2
+  }
+  return guard_time; // cycle time is unknown or 0
+}
+/*---------------------------------------------------------------------------*/
 static void
 send_packet(void *ptr)
 {

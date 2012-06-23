@@ -323,7 +323,9 @@ dio_input(void)
       } else if(dio.mc.type == RPL_DAG_MC_ENERGY) {
         dio.mc.obj.energy.flags = buffer[i + 8];
         dio.mc.obj.energy.energy_est = buffer[i + 9];
-      } else {
+      } else if(dio.mc.type == RPL_DAG_MC_AVG_DELAY) {
+        dio.mc.obj.avg_delay_to_sink = get16(buffer, i + 8);
+      }else {
        PRINTF("RPL: Unhandled DAG MC type: %u\n", (unsigned)dio.mc.type);
        return;
       }
@@ -480,6 +482,10 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr)
       buffer[pos++] = 2;
       buffer[pos++] = instance->mc.obj.energy.flags;
       buffer[pos++] = instance->mc.obj.energy.energy_est;
+    } else if(instance->mc.type == RPL_DAG_MC_AVG_DELAY) {
+      buffer[pos++] = 2;
+      set16(buffer, pos, instance->mc.obj.avg_delay_to_sink);
+      pos += 2;
     } else {
       PRINTF("RPL: Unable to send DIO because of unhandled DAG MC type %u\n",
 	(unsigned)instance->mc.type);
