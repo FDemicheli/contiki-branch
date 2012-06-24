@@ -91,8 +91,7 @@ struct hdr {
 };
 #endif /* WITH_CONTIKIMAC_HEADER */
 
-/* CHANNEL_CHECK_RATE is enforced to be a power of two.
- * If RTIMER_ARCH_SECOND is not also a power of two, there will be an inexact
+/* If RTIMER_ARCH_SECOND is not a multiple of CYCLE_TIME, there will be an inexact
  * number of channel checks per second due to the truncation of CYCLE_TIME.
  * This will degrade the effectiveness of phase optimization with neighbors that
  * do not have the same truncation error.
@@ -100,6 +99,14 @@ struct hdr {
  */
 #if (RTIMER_ARCH_SECOND % CYCLE_TIME) != 0
 #define SYNC_CYCLE_STARTS                    1
+#endif
+
+#define CYCLE_TIME_SYNC_TICKS (RTIMER_ARCH_SECOND - (CYCLE_TIME * CYCLE_RATE))
+/* if the following define is 0, there may be a slight imprecision (of at most CYCLE_TIME_SYNC_TICKS ticks) in
+ * calculations, but they will be faster.
+ */
+#ifndef PRECISE_SYNC_CYCLE_STARTS
+#define PRECISE_SYNC_CYCLE_STARTS 0
 #endif
 
 /* Are we currently receiving a burst? */
@@ -347,16 +354,22 @@ static char
 powercycle(struct rtimer *t, void *ptr)
 {
 #if SYNC_CYCLE_STARTS
+#if PRECISE_SYNC_CYCLE_STARTS
   static volatile rtimer_clock_t sync_cycle_start;
+#endif
   static volatile uint8_t sync_cycle_phase;
 #endif
 
   PT_BEGIN(&pt);
 
 #if SYNC_CYCLE_STARTS
+#if PRECISE_SYNC_CYCLE_STARTS
   sync_cycle_start = RTIMER_NOW();
+#endif
   sync_cycle_phase = 0;
-#else
+#endif
+
+#if !(SYNC_CYCLE_STARTS && PRECISE_SYNC_CYCLE_STARTS)
   cycle_start = RTIMER_NOW();
 #endif
 
@@ -366,6 +379,7 @@ powercycle(struct rtimer *t, void *ptr)
     static uint8_t count;
 
 #if SYNC_CYCLE_STARTS
+#if PRECISE_SYNC_CYCLE_STARTS
     /* Compute cycle start when RTIMER_ARCH_SECOND is not a multiple of CHANNEL_CHECK_RATE */
     if ((++sync_cycle_phase) >= CYCLE_RATE) {
        sync_cycle_phase = 0;
@@ -378,9 +392,18 @@ powercycle(struct rtimer *t, void *ptr)
        cycle_start = sync_cycle_start + (sync_cycle_phase*RTIMER_ARCH_SECOND)/CYCLE_RATE;
 #endif
     }
-#else
+#else  /* if !PRECISE_SYNC_CYCLE_STARTS */
+    if ((++sync_cycle_phase) >= CYCLE_RATE) {
+      sync_cycle_phase = 0;
+      }
+    /* for CYCLE_TIME_SYNC_TICKS times a second, we must add 1 more to cycle_start
+     * in this way, CYCLE_TIME_SYNC_TICKS + CYCLE_RATE * CYCLE_TIME = RTIMER_ARCH_SECOND
+     * and truncation error will be avoided */
+    cycle_start += (sync_cycle_phase < CYCLE_TIME_SYNC_TICKS) ? (CYCLE_TIME + 1) : CYCLE_TIME;
+#endif /* PRECISE_SYNC_CYCLE_STARTS */
+#else  /* if !SYNC_CYCLE_STARTS */
     cycle_start += CYCLE_TIME;
-#endif
+#endif /* SYNC_CYCLE_STARTS */
 
     packet_seen = 0;
 
