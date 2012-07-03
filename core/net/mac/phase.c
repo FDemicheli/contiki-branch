@@ -45,6 +45,7 @@
 #include "net/queuebuf.h"
 #include "dev/watchdog.h"
 #include "dev/leds.h"
+#include "net/neighbor-info.h"
 
 struct phase_queueitem {
   struct ctimer timer;
@@ -63,6 +64,17 @@ struct phase_queueitem {
 
 #define UNKNOWN_CYCLE_TIME (MAX_CYCLE_TIME + 1)     // no cycle time may be higher than MAX_CYCLE_TIME
 #define UNKNOWN_TIME       (RTIMER_ARCH_SECOND + 1) // phases are saved mod 1 second
+
+/* When using the routing function RPL_DAG_MC_AVG_DELAY
+ * the following define may be set to 1
+ * to send test packets and discover the phase of the neighbors
+ * and make faster decisions during the formation of the DAG
+ */
+#ifndef PHASE_DISCOVERY_USE_TEST_PACKET
+#define PHASE_DISCOVERY_USE_TEST_PACKET 1
+#endif
+#define UNKNOWN_TIME_WAITING_FOR_PHASE (RTIMER_ARCH_SECOND + 2)   // phase discovery in progress
+#define UNKNOWN_TIME_PHASE_DISC_FAILED (RTIMER_ARCH_SECOND + 3)   // phase discovery failed
 
 MEMB(queued_packets_memb, struct phase_queueitem, PHASE_QUEUESIZE);
 
@@ -167,6 +179,8 @@ phase_update(const struct phase_list *list,
       list_push(*list->list, e);
     }
   }
+
+  neighbor_info_other_source_metric_update(neighbor, 1); // notify change to RPL
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -178,7 +192,10 @@ cycle_time_update(const struct phase_list *list,
   /* If we have an entry for this neighbor already, we renew it. */
   e = find_neighbor(list, neighbor);
   if(e != NULL) {
-    e->cycle_time = cycle_time;
+    if (e->cycle_time != cycle_time) {
+      e->cycle_time = cycle_time;
+      neighbor_info_other_source_metric_update(neighbor, 1); // notify change to RPL
+    }
   }
   else {
     e = memb_alloc(list->memb);
@@ -192,8 +209,49 @@ cycle_time_update(const struct phase_list *list,
     init_single_phase(e);
     e->cycle_time = cycle_time; // we only know the cycle time
     list_push(*list->list, e);
+    neighbor_info_other_source_metric_update(neighbor, 1); // notify change to RPL
   }
 }
+/*---------------------------------------------------------------------------*/
+#if PHASE_DISCOVERY_USE_TEST_PACKET
+static rimeaddr_t phase_discovery_dest;
+static const struct phase_list * phase_discovery_list = NULL;
+static void
+phase_discovery_callback(void * ptr, int status, int num_transmissions)
+{
+  if (status != MAC_TX_OK) {
+    struct phase * e = find_neighbor(phase_discovery_list, &phase_discovery_dest);
+    if (e && e->time >= RTIMER_ARCH_SECOND) {
+      //printf("phase discovery failed.\n");
+      e->time = UNKNOWN_TIME_PHASE_DISC_FAILED;
+    }
+  }
+
+  phase_discovery_list = NULL; // signal that a phase discovery is no longer in progress
+
+  neighbor_info_packet_sent(status, num_transmissions); // notify change to RPL
+}
+void
+phase_send_phase_discovery(const rimeaddr_t * towho, const struct phase_list *list)
+{
+  packetbuf_clear();
+  packetbuf_set_datalen(sizeof(uint8_t));
+  packetbuf_set_attr(PACKETBUF_ATTR_PACKET_TYPE,
+                     PACKETBUF_ATTR_PACKET_TYPE_DATA);
+  // this packet will be rejected by FRAMER.parse() of the receiver
+  // but the only thing that matters is that the sender receives the ACK
+  *((uint8_t *)(packetbuf_dataptr())) = 1; // just put a byte of data in it
+
+  packetbuf_set_addr(PACKETBUF_ADDR_SENDER, &rimeaddr_node_addr);
+  packetbuf_set_addr(PACKETBUF_ADDR_RECEIVER, towho);
+
+  // store data for the callback
+  rimeaddr_copy(&phase_discovery_dest, towho);
+  phase_discovery_list = list;
+
+  NETSTACK_MAC.send(phase_discovery_callback, NULL);
+}
+#endif /* PHASE_DISCOVERY_USE_TEST_PACKET */
 /*---------------------------------------------------------------------------*/
 rtimer_cycle_time_t phase_get_average_delay(const struct phase_list *list, const rimeaddr_t *neighbor,
                                        rtimer_clock_t guard_time, rtimer_clock_t my_phase)
@@ -202,7 +260,7 @@ rtimer_cycle_time_t phase_get_average_delay(const struct phase_list *list, const
   if (e && e->cycle_time != UNKNOWN_CYCLE_TIME && e->cycle_time != 0) { // cycle time exists and is known
 
     if (e->cycle_time == CYCLE_TIME) { // same cycle time
-      if (e->time != UNKNOWN_TIME) {   // known phase
+      if (e->time < RTIMER_ARCH_SECOND) { // known phase
 #if (CYCLE_TIME & (CYCLE_TIME >> 1))   // works in general
         rtimer_cycle_time_t result = ((rtimer_clock_t)(e->time - my_phase)) % CYCLE_TIME;
 #else   // works only if CYCLE_TIME is a power of two
@@ -216,7 +274,22 @@ rtimer_cycle_time_t phase_get_average_delay(const struct phase_list *list, const
         return result;          // known phase and cycle time
       }
 
-      return guard_time; // same cycle time, but unknown phase
+#if PHASE_DISCOVERY_USE_TEST_PACKET
+      if (e->time == UNKNOWN_TIME_PHASE_DISC_FAILED) { // discovery failed: use RPL to discover
+        return guard_time;
+        }
+
+      if (e->time != UNKNOWN_TIME_WAITING_FOR_PHASE) { // unknown phase and not waiting for the phase discovery
+        if (!phase_discovery_list) {                   // if no other phase discovery is in progress
+          e->time = UNKNOWN_TIME_WAITING_FOR_PHASE;
+          phase_send_phase_discovery(neighbor, list);  // discover the phase
+        }
+      }
+
+      return e->cycle_time + guard_time; // same cycle time, but unknown phase: pessimism
+#else
+      return guard_time; // use RPL to discover
+#endif
     }
     return (e->cycle_time >> 1) + guard_time; // different cycle times: average delay: cycle_time / 2
   }
@@ -257,7 +330,7 @@ phase_wait(struct phase_list *list,
     return PHASE_SEND_NOW;  // the node is always on
   }
 
-  if(e != NULL && (e->cycle_time != UNKNOWN_CYCLE_TIME) && (e->time != UNKNOWN_TIME)) {
+  if(e != NULL && (e->cycle_time != UNKNOWN_CYCLE_TIME) && (e->time < RTIMER_ARCH_SECOND)) {
     rtimer_clock_t wait, now, expected, sync;
     clock_time_t ctimewait;
     

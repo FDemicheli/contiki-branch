@@ -90,6 +90,23 @@ update_metric(const rimeaddr_t *dest, int packet_metric)
   }
 }
 /*---------------------------------------------------------------------------*/
+void
+neighbor_info_other_source_metric_update(const rimeaddr_t * node, int known)
+{
+  link_metric_t *metricp;
+  link_metric_t recorded_metric = NEIGHBOR_INFO_ETX2FIX(ETX_LIMIT);
+  metricp = (link_metric_t *)neighbor_attr_get_data(&attr_etx, node);
+  if (metricp != NULL || *metricp == 0) {
+    recorded_metric = *metricp;
+  }
+
+  if(neighbor_attr_has_neighbor(node)) {
+    if(subscriber_callback != NULL) {
+      subscriber_callback(node, known, recorded_metric);
+    }
+  }
+}
+/*---------------------------------------------------------------------------*/
 static void
 add_neighbor(const rimeaddr_t *addr)
 {
