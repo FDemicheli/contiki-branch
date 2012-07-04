@@ -101,10 +101,12 @@ struct rpl_metric_container {
   uint8_t aggr;
   uint8_t prec;
   uint8_t length;
+  /* field added by RMonica */
   uint16_t node_cycle_time;
   union metric_object {
     struct rpl_metric_object_energy energy;
     uint16_t etx;
+    /* field added by RMonica */
     uint16_t avg_delay_to_sink;
   } obj;
 };

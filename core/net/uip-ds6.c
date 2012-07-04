@@ -895,7 +895,9 @@ uip_ds6_set_addr_iid(uip_ipaddr_t *ipaddr, uip_lladdr_t *lladdr)
 #error uip-ds6.c cannot build interface address when UIP_LLADDR_LEN is not 6 or 8
 #endif
 }
-// reverse:
+/* Function added by RMonica
+ * to get MAC address from the IP address
+ */
 void
 uip_ds6_get_addr_iid(uip_ipaddr_t *ipaddr, uip_lladdr_t *lladdr)
 {

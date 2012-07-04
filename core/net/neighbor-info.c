@@ -90,6 +90,9 @@ update_metric(const rimeaddr_t *dest, int packet_metric)
   }
 }
 /*---------------------------------------------------------------------------*/
+/* Function added by RMonica
+ * see header (neighbor-info.h) for explanation
+ */
 void
 neighbor_info_other_source_metric_update(const rimeaddr_t * node, int known)
 {

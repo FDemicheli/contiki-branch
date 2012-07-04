@@ -67,6 +67,14 @@
 #endif /* NETSTACK_CONF_RDC */
 #endif /* NETSTACK_RDC */
 
+/* Modified by RMonica
+ * patches: - different nodes may have different cycle times
+ *          - add RPL function RPL_DAG_MC_AVG_DELAY
+ *
+ * NETSTACK_RDC_CHANNEL_CHECK_RATE is left here for compatibility
+ * but the node duty cycle rate is defined by CONTIKIMAC_CONF_CYCLE_RATE
+ * also added CONTIKIMAC_CONF_MIN_CYCLE_RATE, the minimum check rate of the whole network
+ */
 #ifndef NETSTACK_RDC_CHANNEL_CHECK_RATE
 #ifdef NETSTACK_CONF_RDC_CHANNEL_CHECK_RATE
 #define NETSTACK_RDC_CHANNEL_CHECK_RATE NETSTACK_CONF_RDC_CHANNEL_CHECK_RATE
@@ -88,7 +96,8 @@
 #define APPROX_RADIO_ALWAYS_ON_CYCLE_RATE 64
 #define APPROX_RADIO_ALWAYS_ON_CYCLE_TIME (RTIMER_ARCH_SECOND / APPROX_RADIO_ALWAYS_ON_CYCLE_RATE)
 
-// max cycle time for the whole network (in case different duty cycles)
+// max cycle time (and min cycle rate) for the whole network
+// if nodes have different duty cycle times
 #ifdef CONTIKIMAC_CONF_MIN_CYCLE_RATE
 #define MAX_CYCLE_TIME (RTIMER_ARCH_SECOND / CONTIKIMAC_CONF_MIN_CYCLE_RATE)
 #define MIN_CYCLE_RATE (CONTIKIMAC_CONF_MIN_CYCLE_RATE)
@@ -97,6 +106,16 @@
 #define MIN_CYCLE_RATE (CYCLE_RATE)
 #endif
 
+/* Modified by RMonica
+ * patches: - different nodes may have different cycle times
+ *          - add RPL function RPL_DAG_MC_AVG_DELAY
+ *
+ * - defined the type rtimer_cycle_time_t to store cycle times in memory
+ * - added functions to access ContikiMAC from RPL (see implementation in
+ *   core/net/mac/contikimac.c for explanation)
+ *
+ * TODO: move all this to a dedicated header file
+ */
 #if MAX_CYCLE_TIME <= 65535  // save memory
 typedef uint16_t rtimer_cycle_time_t;
 #else

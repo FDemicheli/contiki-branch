@@ -37,6 +37,12 @@
  *         Adam Dunkels <adam@sics.se>
  */
 
+/* Modified by RMonica
+ * Patches: - different nodes may have different cycle times
+ *          - add RPL function RPL_DAG_MC_AVG_DELAY
+ *          - phase discovery by test packet
+ */
+
 #include "net/mac/phase.h"
 #include "net/packetbuf.h"
 #include "sys/clock.h"
@@ -100,6 +106,11 @@ find_neighbor(const struct phase_list *list, const rimeaddr_t *addr)
   return NULL;
 }
 /*---------------------------------------------------------------------------*/
+/* Function added by RMonica
+ *
+ * this function initializes a variable of type "struct phase" (defined in phase.h)
+ * with default values
+ */
 void
 init_single_phase(struct phase * e)
 {
@@ -129,7 +140,9 @@ phase_update(const struct phase_list *list,
 {
   struct phase *e;
 
+// Modification by RMonica
 // avoid saving phases higher than one second (all cycle times are divisors of the second)
+// because number greater than RTIMER_ARCH_SECOND are special values (UNKNOWN_TIME and so on)
 #if RTIMER_ARCH_SECOND & (RTIMER_ARCH_SECOND - 1)
   time %= RTIMER_ARCH_SECOND;
 #else
@@ -180,9 +193,14 @@ phase_update(const struct phase_list *list,
     }
   }
 
+  // Modification by RMonica
   neighbor_info_other_source_metric_update(neighbor, 1); // notify change to RPL
 }
 /*---------------------------------------------------------------------------*/
+/* Function added by RMonica
+ * this function works similarly to phase_update
+ * but stores the cycle time of a neighbor node and not its phase
+ */
 void
 cycle_time_update(const struct phase_list *list,
              const rimeaddr_t *neighbor, rtimer_cycle_time_t cycle_time)
@@ -214,8 +232,22 @@ cycle_time_update(const struct phase_list *list,
 }
 /*---------------------------------------------------------------------------*/
 #if PHASE_DISCOVERY_USE_TEST_PACKET
+/* Variables added by RMonica
+ *
+ * While a phase discovery packet has been sent to the MAC layer, and we're waiting for a response
+ * we must remember: the destination address of the packet and the phase list we're trying to update
+ * so, when the response arrives, we update the recorded list at the recorded address.
+ *
+ * Since it's very unlikely that more than one discovery is in progress (because DIOs are received one by one)
+ * we allocate only the space for one discovery
+ * if multiple simultaneous discoveries are requested, we'll reject them all but one
+ */
 static rimeaddr_t phase_discovery_dest;
-static const struct phase_list * phase_discovery_list = NULL;
+static const struct phase_list * phase_discovery_list = NULL; // if NULL, no phase discovery is in progress
+/* Function added by RMonica
+ * This callback is called by the MAC layer when the transmission of the phase discovery packet
+ * ended (succeeded or failed)
+ */
 static void
 phase_discovery_callback(void * ptr, int status, int num_transmissions)
 {
@@ -227,10 +259,16 @@ phase_discovery_callback(void * ptr, int status, int num_transmissions)
     }
   }
 
-  phase_discovery_list = NULL; // signal that a phase discovery is no longer in progress
+  phase_discovery_list = NULL; // mark that a phase discovery is no longer in progress
 
   neighbor_info_packet_sent(status, num_transmissions); // notify change to RPL
 }
+/* Function added by RMonica
+ * Sends an useless packet to the neighbor with mac address "towho"
+ * to discover its phase and save it in the phase list "list".
+ * Before calling this, you need to check if a previous phase discovery is in progress
+ * or the previous discovery could be overridden (see phase_discovery_list)
+ */
 void
 phase_send_phase_discovery(const rimeaddr_t * towho, const struct phase_list *list)
 {
@@ -253,6 +291,16 @@ phase_send_phase_discovery(const rimeaddr_t * towho, const struct phase_list *li
 }
 #endif /* PHASE_DISCOVERY_USE_TEST_PACKET */
 /*---------------------------------------------------------------------------*/
+/* Function added by RMonica
+ * this function gets the average delay for a neighbor node, for the routing function
+ * RPL_DAG_MC_AVG_DELAY.
+ *
+ * It requires:
+ * - the list of the phases of the neighbors
+ * - the MAC address of the neighbor of which the delay must be calculated
+ * - the minimum relay time, here called guard_time
+ * - the duty cycle phase of the current node
+ */
 rtimer_cycle_time_t phase_get_average_delay(const struct phase_list *list, const rimeaddr_t *neighbor,
                                        rtimer_clock_t guard_time, rtimer_clock_t my_phase)
 {
@@ -312,6 +360,11 @@ send_packet(void *ptr)
   memb_free(&queued_packets_memb, p);
 }
 /*---------------------------------------------------------------------------*/
+/* Function modified by RMonica
+ * it now uses the specific cycle time of the receiver instead of CYCLE_TIME
+ * defined in configuration, so different nodes may use different cycle times
+ * the parameter cycle_time has been removed, because cycle times are stored in the phase list
+ */
 phase_status_t
 phase_wait(struct phase_list *list,
            const rimeaddr_t *neighbor,

@@ -92,6 +92,9 @@ int neighbor_info_subscribe(neighbor_info_subscriber_t);
  */
 link_metric_t neighbor_info_get_metric(const rimeaddr_t *addr);
 
+/* Function added by RMonica
+ * for patch "phase discovery by test packet"
+ */
 /**
  * Simulate the change of metric for a neighbor
  * and call again the subscriber_callback

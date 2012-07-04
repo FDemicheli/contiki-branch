@@ -37,6 +37,11 @@
  *         Adam Dunkels <adam@sics.se>
  */
 
+/* Modified by RMonica
+ * Patches: - different nodes may have different cycle times
+ *          - add RPL function RPL_DAG_MC_AVG_DELAY
+ */
+
 #ifndef PHASE_H
 #define PHASE_H
 
@@ -57,7 +62,7 @@ struct phase {
   struct phase *next;
   rimeaddr_t neighbor;
   rtimer_clock_t time;
-  rtimer_cycle_time_t cycle_time; // cycle time of the node (may be different from current)
+  rtimer_cycle_time_t cycle_time; // cycle time of the node (may differ from that of this node)
 #if PHASE_DRIFT_CORRECT
   rtimer_clock_t drift;
 #endif
@@ -91,9 +96,15 @@ void phase_update(const struct phase_list *list, const rimeaddr_t *neighbor,
 
 void phase_remove(const struct phase_list *list, const rimeaddr_t *neighbor);
 
+/* Function added by RMonica
+ * see implementation (phase.c)
+ */
 rtimer_cycle_time_t phase_get_average_delay(const struct phase_list *list, const rimeaddr_t *neighbor,
                                        rtimer_clock_t guard_time, rtimer_clock_t my_phase);
 
+/* Function added by RMonica
+ * see implementation (phase.c)
+ */
 void cycle_time_update(const struct phase_list *list,
              const rimeaddr_t *neighbor, rtimer_cycle_time_t cycle_time);
 

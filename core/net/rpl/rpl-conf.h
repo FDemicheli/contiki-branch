@@ -52,6 +52,7 @@
 #define RPL_DAG_MC RPL_CONF_DAG_MC
 #else
 //#define RPL_DAG_MC RPL_DAG_MC_ETX
+  /* Routing function added by RMonica */
 #define RPL_DAG_MC RPL_DAG_MC_AVG_DELAY
 #endif /* RPL_CONF_DAG_MC */
 

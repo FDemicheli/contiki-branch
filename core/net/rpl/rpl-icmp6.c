@@ -42,6 +42,17 @@
  *               Mathieu Pouillot <m.pouillot@watteco.com>
  */
 
+/* Modified by RMonica
+ * patches: - different nodes may have different cycle times
+ *          - add RPL function RPL_DAG_MC_AVG_DELAY
+ *
+ * DIO metric size increased by 2, caused by field "node_cycle_time" (see rpl_metric_container in rpl.h)
+ * the field is initialized by the sender using the objective function (see rpl-of-etx.c)
+ * and stored by the receiver using contikimac_cycle_time_update (see net/contikimac.c)
+ * the transmission of the metric for RPL_DAG_MC_AVG_DELAY doesn't require additional space
+ * because it's inside an union with the ETX metric (see rpl_metric_container in rpl.h)
+ */
+
 #include "net/tcpip.h"
 #include "net/uip.h"
 #include "net/uip-ds6.h"
@@ -330,9 +341,14 @@ dio_input(void)
        return;
       }
 
-      rimeaddr_t macaddr;
-      uip_ds6_get_addr_iid(&from,(uip_lladdr_t *)&macaddr);
-      contikimac_cycle_time_update(&macaddr,dio.mc.node_cycle_time);
+      /* Added by RMonica
+       * Send cycle time updates to ContikiMAC
+       */
+      /* scope only */ {
+        rimeaddr_t macaddr;
+        uip_ds6_get_addr_iid(&from,(uip_lladdr_t *)&macaddr);
+        contikimac_cycle_time_update(&macaddr,dio.mc.node_cycle_time);
+      }
 
       break;
     case RPL_OPTION_ROUTE_INFO:

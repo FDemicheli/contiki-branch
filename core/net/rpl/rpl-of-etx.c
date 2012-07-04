@@ -43,6 +43,15 @@
  * \author Joakim Eriksson <joakime@sics.se>, Nicolas Tsiftes <nvt@sics.se>
  */
 
+/* Modified by RMonica
+ *
+ * patches: - different nodes may have different cycle times
+ *            (only for the addition of one line to update_metric_container,
+ *            to broadcast the cycle time)
+ *          - add RPL function RPL_DAG_MC_AVG_DELAY
+ *            (search for RPL_DAG_MC_AVG_DELAY to see modifications)
+ */
+
 #include "net/rpl/rpl-private.h"
 #include "net/neighbor-info.h"
 
@@ -225,6 +234,7 @@ update_metric_container(rpl_instance_t *instance)
   instance->mc.flags = RPL_DAG_MC_FLAG_P;
   instance->mc.aggr = RPL_DAG_MC_AGGR_ADDITIVE;
   instance->mc.prec = 0;
+  /* Following line added by RMonica */
   instance->mc.node_cycle_time = contikimac_get_cycle_time_for_routing();
 
   dag = instance->current_dag;

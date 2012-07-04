@@ -39,6 +39,13 @@
  *         Joakim Eriksson <joakime@sics.se>
  */
 
+/* Modified by RMonica
+ *
+ * Patches: - different nodes may have different cycle times
+ *          - add RPL function RPL_DAG_MC_AVG_DELAY
+ *          - more efficent way to calculate wakeup time
+ */
+
 #include "contiki-conf.h"
 #include "dev/leds.h"
 #include "dev/radio.h"
@@ -101,9 +108,18 @@ struct hdr {
 #define SYNC_CYCLE_STARTS                    1
 #endif
 
+/* Modified by RMonica
+ *
+ * CYCLE_TIME_SYNC_TICKS is the remaining of the division of RTIMER_ARCH_SECOND by
+ * CYCLE_RATE. This is used by the patch "more efficent way to calculate wakeup time"
+ * to re-sync after every second.
+ * we expect this number to be very small in most cases (it's always lower than CYCLE_RATE)
+ * otherwise, it may be better to set PRECISE_SYNC_CYCLE_STARTS to 1
+ */
 #define CYCLE_TIME_SYNC_TICKS (RTIMER_ARCH_SECOND - (CYCLE_TIME * CYCLE_RATE))
 /* if the following define is 0, there may be a slight imprecision (of at most CYCLE_TIME_SYNC_TICKS ticks) in
  * calculations, but they will be faster.
+ * if 1, the patch "more efficent way to calculate wakeup time" will be disabled.
  */
 #ifndef PRECISE_SYNC_CYCLE_STARTS
 #define PRECISE_SYNC_CYCLE_STARTS 0
@@ -167,6 +183,13 @@ static int is_receiver_awake = 0;
 
 /* STROBE_TIME is the maximum amount of time a transmitted packet
    should be repeatedly transmitted as part of a transmission. */
+/* Modified by RMonica
+ *
+ * since multiple cycle times are supported, STROBE_TIME must be based
+ * on MAX_CYCLE_TIME (see netstack.h) instead of CYCLE_TIME of the current node
+ * otherwise, nodes with higher CYCLE_TIME may not receive packets
+ * (both unicast and broadcast) because the sender didn't repeated them long enough
+ */
 #define STROBE_TIME                        (MAX_CYCLE_TIME + 2 * CHECK_TIME)
 
 /* GUARD_TIME is the time before the expected phase of a neighbor that
@@ -350,6 +373,9 @@ powercycle_turn_radio_on(void)
   }
 }
 /*---------------------------------------------------------------------------*/
+/* Function modified by RMonica
+ * for patch "more efficent way to calculate wakeup time"
+ */
 static char
 powercycle(struct rtimer *t, void *ptr)
 {
@@ -917,6 +943,11 @@ recv_burst_off(void *ptr)
   we_are_receiving_burst = 0;
 }
 /*---------------------------------------------------------------------------*/
+/* Function added by RMonica
+ *
+ * save cycle time information (in "newtime") for neighbor "addr"
+ * simply delegate to the phase system (see phase.h)
+ */
 void contikimac_cycle_time_update(const rimeaddr_t * addr,rtimer_cycle_time_t newtime)
 {
 #if WITH_PHASE_OPTIMIZATION
@@ -929,6 +960,9 @@ void contikimac_cycle_time_update(const rimeaddr_t * addr,rtimer_cycle_time_t ne
 #endif
 }
 /*---------------------------------------------------------------------------*/
+/* Function added by RMonica
+ * returns the cycle time of this node, to be broadcasted by RPL DIOs
+ */
 rtimer_cycle_time_t contikimac_get_cycle_time_for_routing()
 {
   if (contikimac_keep_radio_on)
@@ -936,6 +970,9 @@ rtimer_cycle_time_t contikimac_get_cycle_time_for_routing()
   return CYCLE_TIME;
 }
 /*---------------------------------------------------------------------------*/
+/* Function added by RMonica
+ * get average communication delay (due to duty cycle) towards node "toNode"
+ */
 rtimer_cycle_time_t contikimac_get_average_delay_for_routing(const rimeaddr_t * toNode)
 {
 #if WITH_PHASE_OPTIMIZATION
