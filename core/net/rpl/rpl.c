@@ -47,6 +47,8 @@
 #include "net/neighbor-info.h"
 
 #define DEBUG DEBUG_NONE
+//#define DEBUG DEBUG_PRINT
+
 #include "net/uip-debug.h"
 
 #include <limits.h>
@@ -113,7 +115,7 @@ rpl_add_route(rpl_dag_t *dag, uip_ipaddr_t *prefix, int prefix_len,
   rep = uip_ds6_route_lookup(prefix);
   if(rep == NULL) {
     if((rep = uip_ds6_route_add(prefix, prefix_len, next_hop, 0)) == NULL) {
-      PRINTF("RPL: No space for more route entries\n");
+    //  PRINTF("RPL: No space for more route entries\n");
       return NULL;
     }
   } else {
@@ -138,7 +140,7 @@ rpl_add_route(rpl_dag_t *dag, uip_ipaddr_t *prefix, int prefix_len,
 }
 /************************************************************************/
 static void
-rpl_link_neighbor_callback(const rimeaddr_t *addr, int known, int etx)
+rpl_link_neighbor_callback(const rimeaddr_t *addr, int known, int etx) //get information if a parent or a  neighbor is still known or not
 {
   uip_ipaddr_t ipaddr;
   rpl_parent_t *parent;
@@ -150,14 +152,15 @@ rpl_link_neighbor_callback(const rimeaddr_t *addr, int known, int etx)
   PRINTF("RPL: Neighbor ");
   PRINT6ADDR(&ipaddr);
   PRINTF(" is %sknown. ETX = %u\n", known ? "" : "no longer ", NEIGHBOR_INFO_FIX2ETX(etx));
-
+  PRINTF("\n");
   for(instance = &instance_table[0], end = instance + RPL_MAX_INSTANCES; instance < end; ++instance) {
     if(instance->used == 1 ) {
       parent = rpl_find_parent_any_dag(instance, &ipaddr);
       if(parent != NULL) {
-        /* Trigger DAG rank recalculation. */
+        /** Trigger DAG rank recalculation. */
         parent->updated = 1;
         parent->link_metric = etx;
+	PRINTF("link_metric in rpl.c = %u\n",parent->link_metric);
 
         if(instance->of->parent_state_callback != NULL) {
           instance->of->parent_state_callback(parent, known, etx);
@@ -173,7 +176,7 @@ rpl_link_neighbor_callback(const rimeaddr_t *addr, int known, int etx)
   }
 
   if(!known) {
-    PRINTF("RPL: Deleting routes installed by DAOs received from ");
+ //   PRINTF("RPL: Deleting routes installed by DAOs received from ");
     PRINT6ADDR(&ipaddr);
     PRINTF("\n");
     uip_ds6_route_rm_by_nexthop(&ipaddr);
@@ -188,7 +191,7 @@ rpl_ipv6_neighbor_callback(uip_ds6_nbr_t *nbr)
   rpl_instance_t *end;
 
   if(!nbr->isused) {
-    PRINTF("RPL: Removing neighbor ");
+   // PRINTF("RPL: Removing neighbor ");
     PRINT6ADDR(&nbr->ipaddr);
     PRINTF("\n");
     for(instance = &instance_table[0], end = instance + RPL_MAX_INSTANCES; instance < end; ++instance) {
@@ -212,6 +215,10 @@ rpl_init(void)
   default_instance = NULL;
 
   rpl_reset_periodic_timer();
+  /**
+  neighbor_info_subscribe = subscribe to notifications of changed neighbor information.
+  \return Returns 1 if the subscription was successful, and 0 if not.
+  **/
   neighbor_info_subscribe(rpl_link_neighbor_callback);
 
   /* add rpl multicast address */

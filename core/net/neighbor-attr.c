@@ -115,7 +115,7 @@ neighbor_attr_has_neighbor(const rimeaddr_t *addr)
 }
 /*---------------------------------------------------------------------------*/
 int
-neighbor_attr_add_neighbor(const rimeaddr_t *addr)
+neighbor_attr_add_neighbor(const rimeaddr_t *addr) /**Add a neighbor entry to neighbor table*/
 {
   struct neighbor_attr *def;
   struct neighbor_addr *item;

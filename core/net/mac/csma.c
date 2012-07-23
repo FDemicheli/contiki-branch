@@ -56,7 +56,8 @@
 
 #include <stdio.h>
 
-#define DEBUG 0
+#define DEBUG 0 ///Non stampa
+//#define DEBUG 1 ///x stampare
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -64,6 +65,7 @@
 #define PRINTF(...)
 #endif /* DEBUG */
 
+//#undef CSMA_MAX_MAC_TRANSMISSIONS ///eventualmente da cancellare!!!
 #ifndef CSMA_MAX_MAC_TRANSMISSIONS
 #ifdef CSMA_CONF_MAX_MAC_TRANSMISSIONS
 #define CSMA_MAX_MAC_TRANSMISSIONS CSMA_CONF_MAX_MAC_TRANSMISSIONS
@@ -98,7 +100,7 @@ struct neighbor_queue {
 #ifdef CSMA_CONF_MAX_NEIGHBOR_QUEUES
 #define CSMA_MAX_NEIGHBOR_QUEUES CSMA_CONF_MAX_NEIGHBOR_QUEUES
 #else
-#define CSMA_MAX_NEIGHBOR_QUEUES 2
+#define CSMA_MAX_NEIGHBOR_QUEUES 2  ///defines the maximum number of neighbor queues simultaneously used in the system.
 #endif /* CSMA_CONF_MAX_NEIGHBOR_QUEUES */
 
 #define MAX_QUEUED_PACKETS QUEUEBUF_NUM

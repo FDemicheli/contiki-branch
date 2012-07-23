@@ -31,6 +31,7 @@
 /**
  * \file
  *         Example of how the collect primitive works.
+           examples-->IPv6--> rpl-collect
  * \author
  *         Adam Dunkels <adam@sics.se>
  */

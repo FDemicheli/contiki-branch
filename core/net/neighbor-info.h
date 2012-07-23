@@ -49,8 +49,8 @@
 
 /* Macros for converting between a fix-point representation of the ETX 
    and a integer representation. */
-#define NEIGHBOR_INFO_ETX2FIX(etx)    ((etx) * NEIGHBOR_INFO_ETX_DIVISOR)
-#define NEIGHBOR_INFO_FIX2ETX(fix)    ((fix) / NEIGHBOR_INFO_ETX_DIVISOR)
+#define NEIGHBOR_INFO_ETX2FIX(etx)    ((etx) * NEIGHBOR_INFO_ETX_DIVISOR) //ottengo un valore di punto fisso
+#define NEIGHBOR_INFO_FIX2ETX(fix)    ((fix) / NEIGHBOR_INFO_ETX_DIVISOR) //ottengo un valore intero
 
 typedef void (*neighbor_info_subscriber_t)(const rimeaddr_t *, int known, int etx);
 typedef uint8_t link_metric_t;

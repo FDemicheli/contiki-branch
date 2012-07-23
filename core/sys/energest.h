@@ -48,15 +48,15 @@ typedef struct {
   unsigned long current;
 } energest_t;
 
-enum energest_type {
-  ENERGEST_TYPE_CPU,
-  ENERGEST_TYPE_LPM,
+enum energest_type { //sono interi
+  ENERGEST_TYPE_CPU,//full power cpu time
+  ENERGEST_TYPE_LPM,//reduced power cpu time
   ENERGEST_TYPE_IRQ,
   ENERGEST_TYPE_LED_GREEN,
   ENERGEST_TYPE_LED_YELLOW,
   ENERGEST_TYPE_LED_RED,
-  ENERGEST_TYPE_TRANSMIT,
-  ENERGEST_TYPE_LISTEN,
+  ENERGEST_TYPE_TRANSMIT,//radio tx time
+  ENERGEST_TYPE_LISTEN,//radio rx time
 
   ENERGEST_TYPE_FLASH_READ,
   ENERGEST_TYPE_FLASH_WRITE,

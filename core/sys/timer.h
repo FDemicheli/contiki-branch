@@ -85,8 +85,8 @@
  * \hideinitializer
  */
 struct timer {
-  clock_time_t start;
-  clock_time_t interval;
+  clock_time_t start; //istante di tempo in cui il timer è stato avviato
+  clock_time_t interval; //durata del timer
 };
 
 void timer_set(struct timer *t, clock_time_t interval);

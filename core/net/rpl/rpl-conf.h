@@ -51,7 +51,7 @@
 #ifdef RPL_CONF_DAG_MC
 #define RPL_DAG_MC RPL_CONF_DAG_MC
 #else
-#define RPL_DAG_MC RPL_DAG_MC_ETX
+#define RPL_DAG_MC RPL_DAG_MC_ETX //viene definito questo e lo ritrovo in rpl-of-etx.c
 #endif /* RPL_CONF_DAG_MC */
 
 /*

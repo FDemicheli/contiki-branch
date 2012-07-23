@@ -43,6 +43,7 @@
 #include "net/uip-nd6.h"
 
 #define DEBUG DEBUG_NONE
+//#define DEBUG DEBUG_PRINT
 #include "net/uip-debug.h"
 
 #define ETX_LIMIT		15
@@ -56,36 +57,53 @@ NEIGHBOR_ATTRIBUTE_GLOBAL(unsigned long, attr_timestamp, NULL);
 static neighbor_info_subscriber_t subscriber_callback;
 /*---------------------------------------------------------------------------*/
 static void
-update_metric(const rimeaddr_t *dest, int packet_metric)
+update_metric(const rimeaddr_t *dest, int packet_metric) ///aggiorna la link_metric
 {
   link_metric_t *metricp;
   link_metric_t recorded_metric, new_metric;
   unsigned long time;
 
+/** void *neighbor_attr_get_data(struct neighbor_attr *, const rimeaddr_t *addr) = get pointer to neighbor table data specified by id*/
+  //PRINTF("attr_etx = %d\n", &attr_etx);
   metricp = (link_metric_t *)neighbor_attr_get_data(&attr_etx, dest);
+ // PRINTF(" metricp = %d\n", *metricp);
+  //PRINTF("packet_metric_prima (valore intero) = %d\n", packet_metric); vale 1
   packet_metric = NEIGHBOR_INFO_ETX2FIX(packet_metric);
-  if(metricp == NULL || *metricp == 0) {
-    recorded_metric = NEIGHBOR_INFO_ETX2FIX(ETX_LIMIT);
+  //PRINTF("packet_metric_dopo (punto fisso) = %d\n", packet_metric); vale 16
+  
+  if(metricp == NULL || *metricp == 0) 
+  { 
+    recorded_metric = NEIGHBOR_INFO_ETX2FIX(ETX_LIMIT); //15*16 = 240
+  
+///NB:quando si scopre un nuovo vicino con il primo pck che si invia, si inizializza ETX con packet_metric = 16, che è il valore minimo
     new_metric = packet_metric;
-  } else {
-    recorded_metric = *metricp;
-    /* Update the EWMA of the ETX for the neighbor. */
+   // PRINTF("link_metric con metricp = 0 vale %d\n", new_metric); ///vale 16
+  } 
+  
+  else 
+  {
+    recorded_metric = *metricp; //vale 16
+    //PRINTF("recorded_metric = %d\n", recorded_metric);
+    /** Update the EWMA of the ETX for the neighbor. */    
+    ///etx_update = 0.9 * etx_recorded_until_now + (0.1) * etx_last
     new_metric = ((uint16_t)recorded_metric * ETX_ALPHA +
                (uint16_t)packet_metric * (ETX_SCALE - ETX_ALPHA)) / ETX_SCALE;
+  //  PRINTF("link_metric con metricp = 16, quindi dopo EWMA vale %d\n", new_metric);
   }
-
+  //I dati vengono convertiti da un valore di punto fisso a intero:
   PRINTF("neighbor-info: ETX changed from %d to %d (packet ETX = %d) %d\n",
-	 NEIGHBOR_INFO_FIX2ETX(recorded_metric),
-	 NEIGHBOR_INFO_FIX2ETX(new_metric),
+	 NEIGHBOR_INFO_FIX2ETX(recorded_metric), /*240/16 = 15*/
+	 NEIGHBOR_INFO_FIX2ETX(new_metric), /*16/16 = 1 */
 	 NEIGHBOR_INFO_FIX2ETX(packet_metric),
          dest->u8[7]);
 
-  if(neighbor_attr_has_neighbor(dest)) {
+  if(neighbor_attr_has_neighbor(dest)) ///Check if a neighbor is already added to the neighbor table
+  {
     time = clock_seconds();
-    neighbor_attr_set_data(&attr_etx, dest, &new_metric);
+    neighbor_attr_set_data(&attr_etx, dest, &new_metric); /** Copy data to neighbor table*/
     neighbor_attr_set_data(&attr_timestamp, dest, &time);
     if(new_metric != recorded_metric && subscriber_callback != NULL) {
-      subscriber_callback(dest, 1, new_metric);
+      subscriber_callback(dest, 1, new_metric); ///Subscribe to notifications of changed neighbor information
     }
   }
 }
@@ -106,7 +124,7 @@ add_neighbor(const rimeaddr_t *addr)
 }
 /*---------------------------------------------------------------------------*/
 void
-neighbor_info_packet_sent(int status, int numtx)
+neighbor_info_packet_sent(int status, int numtx) ///Notify the neighbor information module about the status of a pck transmission
 {
   const rimeaddr_t *dest;
   link_metric_t packet_metric;
@@ -118,8 +136,8 @@ neighbor_info_packet_sent(int status, int numtx)
   if(rimeaddr_cmp(dest, &rimeaddr_null)) {
     return;
   }
-
-  packet_metric = numtx;
+  PRINTF("numtx = %d\n", numtx);
+  packet_metric = numtx; //numtx vale 1
 
   PRINTF("neighbor-info: packet sent to %d.%d, status=%d, metric=%u\n",
 	dest->u8[sizeof(*dest) - 2], dest->u8[sizeof(*dest) - 1],
@@ -150,6 +168,7 @@ neighbor_info_packet_sent(int status, int numtx)
   }
 
   update_metric(dest, packet_metric);
+  //PRINTF("packet_metric = %d\n",packet_metric);
 }
 /*---------------------------------------------------------------------------*/
 void

@@ -34,6 +34,7 @@
 /**
  * \file
  *         Implementation of the energy estimation module
+ *         energest measures the aggregated power consumption of various system states
  * \author
  *         Adam Dunkels <adam@sics.se>
  */

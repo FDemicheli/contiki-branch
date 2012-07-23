@@ -34,7 +34,7 @@
 --------------------------------------------------------------------------- 
 NOTA: 
  rpl-of-etx.c and rpl-of0.c provide implementations of two objective
-functions. They implement an API specified in the rpl_of_t structure.
+functions. They implement an API specified in the rpl_of_t structure in rpl.h.
 The main logic for controlling the topology is in the functions
 calculate_rank() and best_parent(), which you may implement using a
 different set of metrics than the ones provided.
@@ -47,13 +47,14 @@ inclusion list in Makefile.rpl.
 /**
  * \file
  *         An implementation of RPL's objective function 0.
- *
+ *         Implementazione della funzione obiettivo di default
  * \author Joakim Eriksson <joakime@sics.se>, Nicolas Tsiftes <nvt@sics.se>
  */
-//Implementazione funzione obiettivo di default
 #include "net/rpl/rpl-private.h"
 
 #define DEBUG DEBUG_NONE
+//#define DEBUG DEBUG_PRINT
+
 #include "net/uip-debug.h"
 
 #include "net/neighbor-info.h"

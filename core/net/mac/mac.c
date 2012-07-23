@@ -33,7 +33,8 @@
 
 #include "net/mac/mac.h"
 
-#define DEBUG 0
+#define DEBUG 0 ///Non stampa
+//#define DEBUG 1 ///Stampa
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -44,6 +45,7 @@
 /*---------------------------------------------------------------------------*/
 void
 mac_call_sent_callback(mac_callback_t sent, void *ptr, int status, int num_tx)
+///NOTA: num_tx arriva da csma.c riga 214
 {
   PRINTF("mac_callback_t %p ptr %p status %d num_tx %d\n",
          sent, ptr, status, num_tx);

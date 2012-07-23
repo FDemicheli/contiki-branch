@@ -5,8 +5,8 @@
 CONTIKI_TARGET_SOURCEFILES += battery-sensor.c radio-sensor.c \
 	temperature-sensor.c
 
-WITH_CC1100=1
-# WITH_CC2420=1
+#WITH_CC1100=1
+ WITH_CC2420=1
 
 ifndef SMALL
 SMALL=1

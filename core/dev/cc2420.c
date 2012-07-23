@@ -78,7 +78,8 @@
 #define FOOTER1_CRC_OK      0x80
 #define FOOTER1_CORRELATION 0x7f
 
-#define DEBUG 0
+#define DEBUG 0 ///Non stampa
+//#define DEBUG 1 /// Per stampare
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)

@@ -46,11 +46,11 @@
 #include "sys/ctimer.h"
 
 /*---------------------------------------------------------------------------*/
-/* The amount of parents that this node has in a particular DAG. */
-#define RPL_PARENT_COUNT(dag)   list_length((dag)->parents)
+/* The amount of parents that this node has in a particular DAG. Il num di genitori è misurato dalla lunghezza di una lista*/
+#define RPL_PARENT_COUNT(dag)   list_length((dag)->parents) /*list_length() è def in core->lib->list.h*/
 /*---------------------------------------------------------------------------*/
-typedef uint16_t rpl_rank_t;
-typedef uint16_t rpl_ocp_t;
+typedef uint16_t rpl_rank_t; //vuol dire che qls variabile di tipo rpl_rank_t è un uint16_t
+typedef uint16_t rpl_ocp_t;//vuol dire che qls variabile di tipo rpl_rank_t è un uint16_t, quindi di 16 bit
 /*---------------------------------------------------------------------------*/
 /* DAG Metric Container Object Types, to be confirmed by IANA. */
 #define RPL_DAG_MC_NONE			0 /* Local identifier for empty MC */
@@ -78,25 +78,25 @@ typedef uint16_t rpl_ocp_t;
 /* The bit index within the flags field of
    the rpl_metric_object_energy structure. */
 #define RPL_DAG_MC_ENERGY_INCLUDED	3
-#define RPL_DAG_MC_ENERGY_TYPE		1
+#define RPL_DAG_MC_ENERGY_TYPE		1 //indica la lettera T del campo flags dell'oggetto energy: def il tipo di nodo
 #define RPL_DAG_MC_ENERGY_ESTIMATION	0
 
-#define RPL_DAG_MC_ENERGY_TYPE_MAINS		0
-#define RPL_DAG_MC_ENERGY_TYPE_BATTERY		1
+#define RPL_DAG_MC_ENERGY_TYPE_MAINS		0 //nodo alimentato
+#define RPL_DAG_MC_ENERGY_TYPE_BATTERY		1//nodo con la batteria
 #define RPL_DAG_MC_ENERGY_TYPE_SCAVENGING	2
 
 struct rpl_metric_object_energy {
   uint8_t flags;
-  uint8_t energy_est;
+  uint8_t energy_est; //campo E-E: indica la percentuale stimata di energia rimanente
 };
 
 /* Logical representation of a DAG Metric Container. */
 struct rpl_metric_container {
-  uint8_t type;
-  uint8_t flags;
-  uint8_t aggr;
-  uint8_t prec;
-  uint8_t length;
+  uint8_t type; //identifica univocamente ogni oggetto metrica di routing
+  uint8_t flags; // deve essere settato a 0 in tx e ignorato in rx
+  uint8_t aggr;//indica se la metrica è additiva, moltiplicativa, riporta un max o un min
+  uint8_t prec;//indica la precedenza dell'oggetto metrica di routing risp agli altri oggetti. 0 è la precedenza piu alta
+  uint8_t length;//def la lunghezza dell'oggetto metrica di routing
   union metric_object {
     struct rpl_metric_object_energy energy;
     uint16_t etx;
@@ -113,8 +113,8 @@ struct rpl_parent {
   rpl_metric_container_t mc;
   uip_ipaddr_t addr;
   rpl_rank_t rank;
-  uint8_t link_metric;
-  uint8_t dtsn;
+  uint8_t link_metric;//ustata x calcolare la mterica di link
+  uint8_t dtsn; //usato x il mantenimento delle rotte dal nodo radice
   uint8_t updated;
 };
 typedef struct rpl_parent rpl_parent_t;
@@ -129,6 +129,7 @@ struct rpl_prefix {
 typedef struct rpl_prefix rpl_prefix_t;
 /*---------------------------------------------------------------------------*/
 /* Directed Acyclic Graph */
+//Struttura che consente di creare un DAG e da cui si crea un'istanza RPL con rpl_istance
 struct rpl_dag {
   uip_ipaddr_t dag_id;
   rpl_rank_t min_rank; /* should be reset per DAG iteration! */
@@ -185,7 +186,8 @@ typedef struct rpl_instance rpl_instance_t;
 struct rpl_of {
   void (*reset)(struct rpl_dag *);
   void (*parent_state_callback)(rpl_parent_t *, int, int);
-  rpl_parent_t *(*best_parent)(rpl_parent_t *, rpl_parent_t *);
+  rpl_parent_t *(*best_parent)(rpl_parent_t *, rpl_parent_t *); //best_parent è un puntatore alla struct rpl_parent_t
+                                                                //con parametri (rpl_parent_t *, rpl_parent_t *)
   rpl_dag_t *(*best_dag)(rpl_dag_t *, rpl_dag_t *);
   rpl_rank_t (*calculate_rank)(rpl_parent_t *, rpl_rank_t);
   void (*update_metric_container)( rpl_instance_t *);
@@ -193,7 +195,7 @@ struct rpl_of {
 };
 typedef struct rpl_of rpl_of_t;
 /*---------------------------------------------------------------------------*/
-/* Instance */
+/* Instance */ //Contiene tutte le variabili e le strutture x gestire un'istanza RPL
 struct rpl_instance {
   /* DAG configuration */
   rpl_metric_container_t mc;

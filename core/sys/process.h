@@ -86,7 +86,7 @@ typedef unsigned char process_num_events_t;
 #define PROCESS_NONE          NULL
 
 #ifndef PROCESS_CONF_NUMEVENTS
-#define PROCESS_CONF_NUMEVENTS 32
+#define PROCESS_CONF_NUMEVENTS 32 //MAX numero di eventi che si possono gestire
 #endif /* PROCESS_CONF_NUMEVENTS */
 
 #define PROCESS_EVENT_NONE            0x80
@@ -312,18 +312,18 @@ static PT_THREAD(process_thread_##name(struct pt *process_pt,	\
 #endif
 
 /** @} */
-
+//Dichiarazione di un processo tramite la struct process
 struct process {
-  struct process *next;
+  struct process *next; //puntatore al processo successivo
 #if PROCESS_CONF_NO_PROCESS_NAMES
 #define PROCESS_NAME_STRING(process) ""
 #else
-  const char *name;
+  const char *name; //campo stringa per il nome del processo
 #define PROCESS_NAME_STRING(process) (process)->name
 #endif
-  PT_THREAD((* thread)(struct pt *, process_event_t, process_data_t));
-  struct pt pt;
-  unsigned char state, needspoll;
+  PT_THREAD((* thread)(struct pt *, process_event_t, process_data_t)); //descrive il protothread del processo. Vedi pt.h
+  struct pt pt; //struttura per la gestione delle local continuations
+  unsigned char state, needspoll; //state = descrive lo stato del processo; needspoll = segnala la presenza di eventi poll associati al processo
 };
 
 /**

@@ -58,7 +58,7 @@ compower_init(void)
 }
 /*---------------------------------------------------------------------------*/
 void
-compower_accumulate(struct compower_activity *e)
+compower_accumulate(struct compower_activity *e) /* Accumulate the power consumption for the packet reception. */ 
 {
   static uint32_t last_listen, last_transmit;
   uint32_t listen, transmit;
@@ -81,7 +81,8 @@ compower_clear(struct compower_activity *e)
 }
 /*---------------------------------------------------------------------------*/
 void
-compower_attrconv(struct compower_activity *e)
+compower_attrconv(struct compower_activity *e) /*Convert the accumulated power consumption for the received packet to packet attributes so 
+                                                 that the higher levels can keep track of the amount of energy spent on receiving the packet*/ 
 {
   packetbuf_set_attr(PACKETBUF_ATTR_LISTEN_TIME,
                      packetbuf_attr(PACKETBUF_ATTR_LISTEN_TIME) + e->listen);

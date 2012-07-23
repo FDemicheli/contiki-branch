@@ -34,6 +34,7 @@
 /**
  * \file
  *         Collect view client code
+           apps--> collect-view
  * \author
  *         Adam Dunkels <adam@sics.se>
  */

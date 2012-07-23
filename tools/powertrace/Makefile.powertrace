@@ -1,7 +1,23 @@
 ifndef MAKEFILE_POWERTRACE
 MAKEFILE_POWERTRACE = 1
+#invece di fare make -f Makefile.powertrace, conviene scrivere cp Makefile.powertrace Makefile
+#Bisogna specificare il path di CONTIKI:
+#$(CONTIKI)= ~/contiki/ 
+#LOG corrisponde a scrivere cat logfile nella shell
+#poi scrivo cat logfile | grep -a "P " | ./parse-power-data > powertrace-data
 ifdef LOG
 powertrace-parse:
+#Il comando cat unisce piu file in un unico file tramite ">"
+#il comando "sort" ordina alfabeticamente o numericamente una lista. In questo caso ho "sort -nr", cioè:
+#-n: ordina numericamente, -r: inverte il senso di ordinamento, producendo i risultati a partire dal valore maggiore
+#cat sort permette di leggere il contenuto della lista 
+# sort > nome_file: salva il risultato su nome_file
+#caratt | (pipe): utilizzato per concatenare due o più comandi,cioè per prendere l'output di un comando e inviarlo all'input di un altro comando
+#grep -a: processa un file binario come se fosse di testo
+#grep "P": cerca solo la lettera P
+#grep -a "P": processa il file e cerca la lettera "P"
+#cat $(LOG) | grep: legge il LOG file e il contenuto lo processa grep
+
 	cat $(LOG) | grep -a "P " | $(CONTIKI)/tools/powertrace/parse-power-data > powertrace-data
 	cat $(LOG) | grep -a "P " | $(CONTIKI)/tools/powertrace/parse-node-power | sort -nr > powertrace-node-data
 	cat $(LOG) | $(CONTIKI)/tools/powertrace/parse-sniff-data | sort -n > powertrace-sniff-data

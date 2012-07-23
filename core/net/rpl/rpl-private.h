@@ -109,11 +109,11 @@
 #define RPL_ZERO_LIFETIME               0
 
 /* Default route lifetime unit. */
-#define RPL_DEFAULT_LIFETIME_UNIT       0xffff
+#define RPL_DEFAULT_LIFETIME_UNIT       0xffff  //18 hours
 
 /* Default route lifetime as a multiple of the lifetime unit. */
 #define RPL_DEFAULT_LIFETIME            0xff
-
+//il backslash in una macro vuol dire che nella riga successiva viene indicato cosa fa la funzione
 #define RPL_LIFETIME(instance, lifetime) \
           ((unsigned long)(instance)->lifetime_unit * (lifetime))
 
@@ -146,6 +146,7 @@
 #else
 //DIO_INTERVAL_MIN = this is the default value used to configure Imin for the DIO trickle timer
 #define RPL_DIO_INTERVAL_MIN        12  //quindi n=12 e ho 2^12 ms =  4096 ms = 4.096 s
+//#define RPL_DIO_INTERVAL_MIN        24  //~8s
 #endif
 
 /* Maximum amount of timer doublings. */
@@ -153,6 +154,7 @@
 #define RPL_DIO_INTERVAL_DOUBLINGS  RPL_CONF_DIO_INTERVAL_DOUBLINGS
 #else
 //DIO_INTERVAL_DOUBLINGS = this is the default value used to configure Imax for the DIO trickle timer
+//Il valore 8 vuol dire che 2^8 = 256 e Imax = 4.096 * 256 = 1048 secondi.
 #define RPL_DIO_INTERVAL_DOUBLINGS  8
 #endif
 

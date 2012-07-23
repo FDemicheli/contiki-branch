@@ -44,8 +44,8 @@
 #include "lib/random.h"
 #include "sys/ctimer.h"
 
-//#define DEBUG DEBUG_NONE
-#define DEBUG DEBUG_PRINT
+#define DEBUG DEBUG_NONE
+//#define DEBUG DEBUG_PRINT
 #include "net/uip-debug.h"
 
 /************************************************************************/
@@ -79,7 +79,7 @@ handle_periodic_timer(void *ptr)
 }
 /************************************************************************/
 static void
-new_dio_interval(rpl_instance_t *instance)
+new_dio_interval(rpl_instance_t *instance) //implementa il trickle algorithm. Calcola il tempo t
 {
   uint32_t time;
 
@@ -90,9 +90,9 @@ new_dio_interval(rpl_instance_t *instance)
   /* Convert from milliseconds to CLOCK_TICKS. */
   time = (time * CLOCK_SECOND) / 1000;
 
-  instance->dio_next_delay = time;
+  instance->dio_next_delay = time; /* dio_next_delay = delay for completion of DIO interval */
 
-  /* random number between I/2 and I */
+  /* random number between I/2 and I: viene generato t */
   time = time >> 1;
   time += (time * random_rand()) / RANDOM_RAND_MAX;
 
@@ -102,11 +102,13 @@ new_dio_interval(rpl_instance_t *instance)
    * the randomized time and the start time of the next interval.
    */
   instance->dio_next_delay -= time;
+//  PRINTF("dio_next_delay = %lu\n", instance->dio_next_delay); 
   instance->dio_send = 1; /*da rpl.h: dio_send = for keeping track of which mode the timer is in */
+//vuol dire che il timer è attivo
 
-#if RPL_CONF_STATS
-  /* keep some stats */
-  instance->dio_totint++;
+//#if RPL_CONF_STATS /*queste righe vengono evitate xche RPL_CONF_STATS = 0 */
+  /* keep some stats */ 
+/*  instance->dio_totint++;
   instance->dio_totrecv += instance->dio_counter;
   ANNOTATE("#A rank=%u.%u(%u),stats=%d %d %d %d,color=%s\n",
 	   DAG_RANK(instance->current_dag->rank, instance),
@@ -114,15 +116,25 @@ new_dio_interval(rpl_instance_t *instance)
            instance->current_dag->version,
            instance->dio_totint, instance->dio_totsend,
            instance->dio_totrecv,instance->dio_intcurrent,
-	   instance->current_dag->rank == ROOT_RANK(instance) ? "BLUE" : "ORANGE");
-#endif /* RPL_CONF_STATS */
+	   instance->current_dag->rank == ROOT_RANK(instance) ? "BLUE" : "ORANGE"); */
+//#endif /* RPL_CONF_STATS */
 
+//Inizia un intervallo: t è stato settato in un intervallo casuale tra [I/2, I)
   /* reset the redundancy counter */
-  instance->dio_counter = 0;//la tx è inconsistente e quindi c viene resettata a 0 e I = Imin ??
-
+  instance->dio_counter = 0;//il contatore c viene resettato a 0 xchè all'inizio di un nuovo intervallo deve essere 0
   /* schedule the timer */
-  PRINTF("RPL: Scheduling DIO timer %lu ticks in future (Interval)\n", time); //al termine del tempo, viene rivalutata la consistenza del DIO? 
+  //Al termine del tempo t, viene chiamata la funzione handle_dio_timer
+  PRINTF("RPL: Scheduling DIO timer %lu ticks in future (Interval)\n", time); 
+  
   ctimer_set(&instance->dio_timer, time, &handle_dio_timer, instance);
+  
+ /*ctimer_set è una function che chiama un'altra funzione quando l'intervallo di tempo scade.
+   Si trova in sys/ctimer.h e ha la seguente sintassi:(struct ctimer *c, clock_time_t t,void (*f)(void *), void *ptr), dove
+ - &instance->dio_timer = puntatore alla struct citmer
+ - time = durata dell'intervallo di tempo
+ - &handle_dio_timer = funzione che deve essere chiamata quando il tempo termnina
+ - instance = l'argomento che passo alla funzione chiamata
+ */ 
 }
 /************************************************************************/
 static void
@@ -130,10 +142,11 @@ handle_dio_timer(void *ptr)
 {
   rpl_instance_t *instance;
 
-  instance = (rpl_instance_t *)ptr;
+  instance = (rpl_instance_t *)ptr; // converte il puntatore ptr di tipo void, in un puntatore alla struct rpl_instance_t
 
-  PRINTF("RPL: DIO Timer triggered\n");
-  if(!dio_send_ok) {
+  PRINTF("RPL: DIO Timer triggered\n");//Il timer viene attivato all'inizio dell'intervallo, che corrisponde a Imin
+  //PRINTF("dio_send_ok = %lu\n", dio_send_ok);
+  if(!dio_send_ok) { //if(dio_send_ok == 0)
     if(uip_ds6_get_link_local(ADDR_PREFERRED) != NULL) {
       dio_send_ok = 1;
     } else {
@@ -147,20 +160,27 @@ handle_dio_timer(void *ptr)
     /* send DIO if counter is less than desired redundancy */
    //quindi DIO inviato se c < K
     if(instance->dio_counter < instance->dio_redundancy) {
-#if RPL_CONF_STATS /*è diverso da 0*/
-      instance->dio_totsend++;
-#endif /* RPL_CONF_STATS */
-      dio_output(instance, NULL);
+   //   PRINTF("cost c = %d, cost k = %d, c < k\n", instance->dio_counter, instance->dio_redundancy);
+      
+//#if RPL_CONF_STATS /*(è diversa da 0), ma non lo è. In rpl-conf.h è settata a 0*/
+      //instance->dio_totsend++;
+//#endif 
+
+      /* RPL_CONF_STATS */
+      //è una funzione che contiene tutti i parametri dell'istanza RPL, infatti viene passata la struct rpl_instance
+      dio_output(instance, NULL); //in rpl-private, riga 275
     } 
     else {
       PRINTF("RPL: Supressing DIO transmission (%d >= %d)\n",
              instance->dio_counter, instance->dio_redundancy);
     }
     
-    instance->dio_send = 0; //bisognerà ricontrollare che c < K
+    instance->dio_send = 0; //deve essere messo a 0 xchè il tempo è finito
     PRINTF("RPL: Scheduling DIO timer %lu ticks in future (sent)\n",
            instance->dio_next_delay);
+    //Il DIO viene inviato al termine dell'intervallo di tempo   
     ctimer_set(&instance->dio_timer, instance->dio_next_delay, handle_dio_timer, instance);
+    
   } 
   
   else {
@@ -180,7 +200,7 @@ rpl_reset_periodic_timer(void)
   ctimer_set(&periodic_timer, CLOCK_SECOND, handle_periodic_timer, NULL);
 }
 /************************************************************************/
-/* Resets the DIO timer in the instance to its minimal interval. */
+/* Resets the DIO timer in the instance to its minimal interval Imin */
 void
 rpl_reset_dio_timer(rpl_instance_t *instance)
 {

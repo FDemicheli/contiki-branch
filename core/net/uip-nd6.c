@@ -75,7 +75,8 @@
 #include "lib/random.h"
 
 /*------------------------------------------------------------------*/
-#define DEBUG 0
+#define DEBUG 0 ///Non stampa
+//#define DEBUG 1
 #include "net/uip-debug.h"
 
 #if UIP_LOGGING
