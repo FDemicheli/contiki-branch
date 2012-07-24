@@ -92,4 +92,20 @@ int neighbor_info_subscribe(neighbor_info_subscriber_t);
  */
 link_metric_t neighbor_info_get_metric(const rimeaddr_t *addr);
 
+/* Function added by RMonica
+ * for patch "phase discovery by test packet"
+ */
+/**
+ * Simulate the change of metric for a neighbor
+ * and call again the subscriber_callback
+ * useful when parameters that affect routing changed
+ * but the link metric did not
+ *
+ * TODO: Yes, this is an ugly hack. Unfortunately, no other simple solution found.
+ *
+ * \param node the node of which the metric change must be simulated
+ * \param known if 0, the node will be removed from the list
+ */
+void neighbor_info_other_source_metric_update(const rimeaddr_t * node, int known);
+
 #endif /* NEIGHBOR_INFO_H */

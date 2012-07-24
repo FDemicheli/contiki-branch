@@ -39,6 +39,13 @@
  *         Joakim Eriksson <joakime@sics.se>
  */
 
+/* Modified by RMonica
+ *
+ * Patches: - different nodes may have different cycle times
+ *          - add RPL function RPL_DAG_MC_AVG_DELAY
+ *          - more efficent way to calculate wakeup time
+ */
+
 #include "contiki-conf.h"
 #include "dev/leds.h"
 #include "dev/radio.h"
@@ -82,11 +89,6 @@
 #define RDC_CONF_MCU_SLEEP           0
 #endif
 
-#if NETSTACK_RDC_CHANNEL_CHECK_RATE >= 64
-#undef WITH_PHASE_OPTIMIZATION
-#define WITH_PHASE_OPTIMIZATION 0
-#endif
-
 #if WITH_CONTIKIMAC_HEADER
 #define CONTIKIMAC_ID 0x00
 
@@ -96,22 +98,31 @@ struct hdr {
 };
 #endif /* WITH_CONTIKIMAC_HEADER */
 
-/* CYCLE_TIME for channel cca checks, in rtimer ticks. */
-#ifdef CONTIKIMAC_CONF_CYCLE_TIME
-#define CYCLE_TIME (CONTIKIMAC_CONF_CYCLE_TIME)
-#else
-#define CYCLE_TIME (RTIMER_ARCH_SECOND / NETSTACK_RDC_CHANNEL_CHECK_RATE)
-#endif
-
-/* CHANNEL_CHECK_RATE is enforced to be a power of two.
- * If RTIMER_ARCH_SECOND is not also a power of two, there will be an inexact
+/* If RTIMER_ARCH_SECOND is not a multiple of CYCLE_TIME, there will be an inexact
  * number of channel checks per second due to the truncation of CYCLE_TIME.
  * This will degrade the effectiveness of phase optimization with neighbors that
  * do not have the same truncation error.
  * Define SYNC_CYCLE_STARTS to ensure an integral number of checks per second.
  */
-#if RTIMER_ARCH_SECOND & (RTIMER_ARCH_SECOND - 1)
+#if (RTIMER_ARCH_SECOND % CYCLE_TIME) != 0
 #define SYNC_CYCLE_STARTS                    1
+#endif
+
+/* Modified by RMonica
+ *
+ * CYCLE_TIME_SYNC_TICKS is the remaining of the division of RTIMER_ARCH_SECOND by
+ * CYCLE_RATE. This is used by the patch "more efficent way to calculate wakeup time"
+ * to re-sync after every second.
+ * we expect this number to be very small in most cases (it's always lower than CYCLE_RATE)
+ * otherwise, it may be better to set PRECISE_SYNC_CYCLE_STARTS to 1
+ */
+#define CYCLE_TIME_SYNC_TICKS (RTIMER_ARCH_SECOND - (CYCLE_TIME * CYCLE_RATE))
+/* if the following define is 0, there may be a slight imprecision (of at most CYCLE_TIME_SYNC_TICKS ticks) in
+ * calculations, but they will be faster.
+ * if 1, the patch "more efficent way to calculate wakeup time" will be disabled.
+ */
+#ifndef PRECISE_SYNC_CYCLE_STARTS
+#define PRECISE_SYNC_CYCLE_STARTS 0
 #endif
 
 /* Are we currently receiving a burst? */
@@ -172,11 +183,18 @@ static int is_receiver_awake = 0;
 
 /* STROBE_TIME is the maximum amount of time a transmitted packet
    should be repeatedly transmitted as part of a transmission. */
-#define STROBE_TIME                        (CYCLE_TIME + 2 * CHECK_TIME)
+/* Modified by RMonica
+ *
+ * since multiple cycle times are supported, STROBE_TIME must be based
+ * on MAX_CYCLE_TIME (see netstack.h) instead of CYCLE_TIME of the current node
+ * otherwise, nodes with higher CYCLE_TIME may not receive packets
+ * (both unicast and broadcast) because the sender didn't repeated them long enough
+ */
+#define STROBE_TIME                        (MAX_CYCLE_TIME + 2 * CHECK_TIME)
 
 /* GUARD_TIME is the time before the expected phase of a neighbor that
    a transmitted should begin transmitting packets. */
-#define GUARD_TIME                         10 * CHECK_TIME + CHECK_TIME_TX
+#define GUARD_TIME                         (10 * CHECK_TIME + CHECK_TIME_TX)
 
 /* INTER_PACKET_INTERVAL is the interval between two successive packet transmissions */
 #define INTER_PACKET_INTERVAL              RTIMER_ARCH_SECOND / 5000
@@ -355,16 +373,29 @@ powercycle_turn_radio_on(void)
   }
 }
 /*---------------------------------------------------------------------------*/
+/* Function modified by RMonica
+ * for patch "more efficent way to calculate wakeup time"
+ */
 static char
 powercycle(struct rtimer *t, void *ptr)
 {
+#if SYNC_CYCLE_STARTS
+#if PRECISE_SYNC_CYCLE_STARTS
+  static volatile rtimer_clock_t sync_cycle_start;
+#endif
+  static volatile uint8_t sync_cycle_phase;
+#endif
+
   PT_BEGIN(&pt);
 
 #if SYNC_CYCLE_STARTS
-static volatile rtimer_clock_t sync_cycle_start;
-static volatile uint8_t sync_cycle_phase;
+#if PRECISE_SYNC_CYCLE_STARTS
   sync_cycle_start = RTIMER_NOW();
-#else
+#endif
+  sync_cycle_phase = 0;
+#endif
+
+#if !(SYNC_CYCLE_STARTS && PRECISE_SYNC_CYCLE_STARTS)
   cycle_start = RTIMER_NOW();
 #endif
 
@@ -374,21 +405,31 @@ static volatile uint8_t sync_cycle_phase;
     static uint8_t count;
 
 #if SYNC_CYCLE_STARTS
+#if PRECISE_SYNC_CYCLE_STARTS
     /* Compute cycle start when RTIMER_ARCH_SECOND is not a multiple of CHANNEL_CHECK_RATE */
-    if (sync_cycle_phase++ == NETSTACK_RDC_CHANNEL_CHECK_RATE) {
+    if ((++sync_cycle_phase) >= CYCLE_RATE) {
        sync_cycle_phase = 0;
        sync_cycle_start += RTIMER_ARCH_SECOND;
        cycle_start = sync_cycle_start;
     } else {
-#if (RTIMER_ARCH_SECOND * NETSTACK_RDC_CHANNEL_CHECK_RATE) > 65535
-       cycle_start = sync_cycle_start + ((unsigned long)(sync_cycle_phase*RTIMER_ARCH_SECOND))/NETSTACK_RDC_CHANNEL_CHECK_RATE;
+#if (RTIMER_ARCH_SECOND * CYCLE_RATE) > 65535
+       cycle_start = sync_cycle_start + (((unsigned long)sync_cycle_phase*RTIMER_ARCH_SECOND))/CYCLE_RATE;
 #else
-       cycle_start = sync_cycle_start + (sync_cycle_phase*RTIMER_ARCH_SECOND)/NETSTACK_RDC_CHANNEL_CHECK_RATE;
+       cycle_start = sync_cycle_start + (sync_cycle_phase*RTIMER_ARCH_SECOND)/CYCLE_RATE;
 #endif
     }
-#else
+#else  /* if !PRECISE_SYNC_CYCLE_STARTS */
+    if ((++sync_cycle_phase) >= CYCLE_RATE) {
+      sync_cycle_phase = 0;
+      }
+    /* for CYCLE_TIME_SYNC_TICKS times a second, we must add 1 more to cycle_start
+     * in this way, CYCLE_TIME_SYNC_TICKS + CYCLE_RATE * CYCLE_TIME = RTIMER_ARCH_SECOND
+     * and truncation error will be avoided */
+    cycle_start += (sync_cycle_phase < CYCLE_TIME_SYNC_TICKS) ? (CYCLE_TIME + 1) : CYCLE_TIME;
+#endif /* PRECISE_SYNC_CYCLE_STARTS */
+#else  /* if !SYNC_CYCLE_STARTS */
     cycle_start += CYCLE_TIME;
-#endif
+#endif /* SYNC_CYCLE_STARTS */
 
     packet_seen = 0;
 
@@ -519,7 +560,7 @@ static int
 send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_list *buf_list)
 {
   rtimer_clock_t t0;
-  rtimer_clock_t encounter_time = 0, previous_txtime = 0;
+  rtimer_clock_t encounter_time = 0;
   int strobes;
   uint8_t got_strobe_ack = 0;
   int hdrlen, len;
@@ -540,7 +581,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
     PRINTF("contikimac: radio is turned off\n");
     return MAC_TX_ERR_FATAL;
   }
-  
+ 
   if(packetbuf_totlen() == 0) {
     PRINTF("contikimac: send_packet data len 0\n");
     return MAC_TX_ERR_FATAL;
@@ -631,7 +672,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
   if(!is_broadcast && !is_receiver_awake) {
 #if WITH_PHASE_OPTIMIZATION
     ret = phase_wait(&phase_list, packetbuf_addr(PACKETBUF_ADDR_RECEIVER),
-                     CYCLE_TIME, GUARD_TIME,
+                     GUARD_TIME,
                      mac_callback, mac_callback_ptr, buf_list);
     if(ret == PHASE_DEFERRED) {
       return MAC_TX_DEFERRED;
@@ -720,7 +761,6 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
   watchdog_periodic();
   t0 = RTIMER_NOW();
   seqno = packetbuf_attr(PACKETBUF_ATTR_MAC_SEQNO);
-
   for(strobes = 0, collisions = 0;
       got_strobe_ack == 0 && collisions == 0 &&
       RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + STROBE_TIME); strobes++) {
@@ -734,7 +774,6 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
 
     len = 0;
 
-    previous_txtime = RTIMER_NOW();
     {
       rtimer_clock_t wt;
       rtimer_clock_t txtime;
@@ -748,7 +787,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
       if(ret == RADIO_TX_OK) {
         if(!is_broadcast) {
           got_strobe_ack = 1;
-          encounter_time = previous_txtime;
+          encounter_time = txtime;
           break;
         }
       } else if (ret == RADIO_TX_NOACK) {
@@ -773,7 +812,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
         len = NETSTACK_RADIO.read(ackbuf, ACK_LEN);
         if(len == ACK_LEN && seqno == ackbuf[ACK_LEN-1]) {
           got_strobe_ack = 1;
-          encounter_time = previous_txtime;
+          encounter_time = txtime;
           break;
         } else {
           PRINTF("contikimac: collisions while sending\n");
@@ -781,8 +820,6 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
         }
       }
 #endif /* RDC_CONF_HARDWARE_ACK */
-
-      previous_txtime = txtime;
     }
   }
 
@@ -904,6 +941,45 @@ recv_burst_off(void *ptr)
 {
   off();
   we_are_receiving_burst = 0;
+}
+/*---------------------------------------------------------------------------*/
+/* Function added by RMonica
+ *
+ * save cycle time information (in "newtime") for neighbor "addr"
+ * simply delegate to the phase system (see phase.h)
+ */
+void contikimac_cycle_time_update(const rimeaddr_t * addr,rtimer_cycle_time_t newtime)
+{
+#if WITH_PHASE_OPTIMIZATION
+  if (newtime < APPROX_RADIO_ALWAYS_ON_CYCLE_TIME) {
+    newtime = 0;
+  }
+
+  //printf("contikimac_cycle_time_update: %d source: %u\n",((int)newtime),(int)(addr->u8[7]));
+  cycle_time_update(&phase_list, addr, newtime);
+#endif
+}
+/*---------------------------------------------------------------------------*/
+/* Function added by RMonica
+ * returns the cycle time of this node, to be broadcasted by RPL DIOs
+ */
+rtimer_cycle_time_t contikimac_get_cycle_time_for_routing()
+{
+  if (contikimac_keep_radio_on)
+    return 0; // 0 means "radio always on"
+  return CYCLE_TIME;
+}
+/*---------------------------------------------------------------------------*/
+/* Function added by RMonica
+ * get average communication delay (due to duty cycle) towards node "toNode"
+ */
+rtimer_cycle_time_t contikimac_get_average_delay_for_routing(const rimeaddr_t * toNode)
+{
+#if WITH_PHASE_OPTIMIZATION
+  return phase_get_average_delay(&phase_list,toNode,(2 * GUARD_TIME),cycle_start);
+#else
+  return (CYCLE_TIME >> 1) + (2 * GUARD_TIME);
+#endif
 }
 /*---------------------------------------------------------------------------*/
 static void

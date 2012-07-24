@@ -42,6 +42,17 @@
  *               Mathieu Pouillot <m.pouillot@watteco.com>
  */
 
+/* Modified by RMonica
+ * patches: - different nodes may have different cycle times
+ *          - add RPL function RPL_DAG_MC_AVG_DELAY
+ *
+ * DIO metric size increased by 2, caused by field "node_cycle_time" (see rpl_metric_container in rpl.h)
+ * the field is initialized by the sender using the objective function (see rpl-of-etx.c)
+ * and stored by the receiver using contikimac_cycle_time_update (see net/contikimac.c)
+ * the transmission of the metric for RPL_DAG_MC_AVG_DELAY doesn't require additional space
+ * because it's inside an union with the ETX metric (see rpl_metric_container in rpl.h)
+ */
+
 #include "net/tcpip.h"
 #include "net/uip.h"
 #include "net/uip-ds6.h"
@@ -155,7 +166,7 @@ dis_input(void)
   PRINTF("\n");
 
   for(instance = &instance_table[0], end = instance + RPL_MAX_INSTANCES; instance < end; ++instance) {
-    if(instance->used == 1 ) {
+    if(instance->used == 1) {
 #if RPL_LEAF_ONLY
       if(!uip_is_addr_mcast(&UIP_IP_BUF->destipaddr)) {
 #else /* !RPL_LEAF_ONLY */
@@ -177,7 +188,7 @@ dis_output(uip_ipaddr_t *addr)
   unsigned char *buffer;
   uip_ipaddr_t tmpaddr;
 
-  /* DAG Information Solicitation  - 2 bytes reserved */
+  /* DAG Information Solicitation  - 2 bytes reserved      */
   /*      0                   1                   2        */
   /*      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3  */
   /*     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ */
@@ -188,12 +199,14 @@ dis_output(uip_ipaddr_t *addr)
   buffer[0] = buffer[1] = 0;
 
   if(addr == NULL) {
-    PRINTF("RPL: Sending a DIS\n");
     uip_create_linklocal_rplnodes_mcast(&tmpaddr);
     addr = &tmpaddr;
-  } else {
-    PRINTF("RPL: Sending a unicast DIS\n");
   }
+
+  PRINTF("RPL: Sending a DIS to ");
+  PRINT6ADDR(addr);
+  PRINTF("\n");
+
   uip_icmp6_send(addr, ICMP6_RPL, RPL_CODE_DIS, 2);
 }
 /*---------------------------------------------------------------------------*/
@@ -295,7 +308,7 @@ dio_input(void)
 
     switch(subopt_type) {
     case RPL_OPTION_DAG_METRIC_CONTAINER:
-      if(len < 6) {
+      if(len < 8) {
         PRINTF("RPL: Invalid DAG MC, len = %d\n", len);
 	RPL_STAT(rpl_stats.malformed_msgs++);
         return;
@@ -305,10 +318,11 @@ dio_input(void)
       dio.mc.flags |= buffer[i + 4] >> 7;
       dio.mc.aggr = (buffer[i + 4] >> 4) & 0x3;
       dio.mc.prec = buffer[i + 4] & 0xf;
-      dio.mc.length = buffer[i + 5];
+      dio.mc.node_cycle_time = get16(buffer, i + 5);
+      dio.mc.length = buffer[i + 7];
 
       if(dio.mc.type == RPL_DAG_MC_ETX) {
-        dio.mc.obj.etx = get16(buffer, i + 6);
+        dio.mc.obj.etx = get16(buffer, i + 8);
 
         PRINTF("RPL: DAG MC: type %u, flags %u, aggr %u, prec %u, length %u, ETX %u\n",
 	       (unsigned)dio.mc.type,  
@@ -318,12 +332,24 @@ dio_input(void)
 	       (unsigned)dio.mc.length, 
 	       (unsigned)dio.mc.obj.etx);
       } else if(dio.mc.type == RPL_DAG_MC_ENERGY) {
-        dio.mc.obj.energy.flags = buffer[i + 6];
-        dio.mc.obj.energy.energy_est = buffer[i + 7];
-      } else {
+        dio.mc.obj.energy.flags = buffer[i + 8];
+        dio.mc.obj.energy.energy_est = buffer[i + 9];
+      } else if(dio.mc.type == RPL_DAG_MC_AVG_DELAY) {
+        dio.mc.obj.avg_delay_to_sink = get16(buffer, i + 8);
+      }else {
        PRINTF("RPL: Unhandled DAG MC type: %u\n", (unsigned)dio.mc.type);
        return;
       }
+
+      /* Added by RMonica
+       * Send cycle time updates to ContikiMAC
+       */
+      /* scope only */ {
+        rimeaddr_t macaddr;
+        uip_ds6_get_addr_iid(&from,(uip_lladdr_t *)&macaddr);
+        contikimac_cycle_time_update(&macaddr,dio.mc.node_cycle_time);
+      }
+
       break;
     case RPL_OPTION_ROUTE_INFO:
       if(len < 9) {
@@ -410,7 +436,8 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr)
 #endif /* !RPL_LEAF_ONLY */
 
 #if RPL_LEAF_ONLY
-  /* only respond to unicast DIS */
+  /* In leaf mode, we send DIO message only as unicasts in response to 
+     unicast DIS messages. */
   if(uc_addr == NULL) {
     return;
   }
@@ -456,11 +483,13 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr)
     instance->of->update_metric_container(instance);
 
     buffer[pos++] = RPL_OPTION_DAG_METRIC_CONTAINER;
-    buffer[pos++] = 6;
+    buffer[pos++] = 8; // size of the metric container
     buffer[pos++] = instance->mc.type;
     buffer[pos++] = instance->mc.flags >> 1;
     buffer[pos] = (instance->mc.flags & 1) << 7;
     buffer[pos++] |= (instance->mc.aggr << 4) | instance->mc.prec;
+    set16(buffer, pos, instance->mc.node_cycle_time);
+    pos += 2;
     if(instance->mc.type == RPL_DAG_MC_ETX) {
       buffer[pos++] = 2;
       set16(buffer, pos, instance->mc.obj.etx);
@@ -469,6 +498,10 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr)
       buffer[pos++] = 2;
       buffer[pos++] = instance->mc.obj.energy.flags;
       buffer[pos++] = instance->mc.obj.energy.energy_est;
+    } else if(instance->mc.type == RPL_DAG_MC_AVG_DELAY) {
+      buffer[pos++] = 2;
+      set16(buffer, pos, instance->mc.obj.avg_delay_to_sink);
+      pos += 2;
     } else {
       PRINTF("RPL: Unable to send DIO because of unhandled DAG MC type %u\n",
 	(unsigned)instance->mc.type);
@@ -701,26 +734,17 @@ dao_output(rpl_parent_t *n, uint8_t lifetime)
   rpl_instance_t *instance;
   unsigned char *buffer;
   uint8_t prefixlen;
-  uip_ipaddr_t addr;
   uip_ipaddr_t prefix;
   int pos;
 
   /* Destination Advertisement Object */
+
   if(get_global_addr(&prefix) == 0) {
     PRINTF("RPL: No global address set for this node - suppressing DAO\n");
     return;
   }
 
-  if(n == NULL) {
-    dag = rpl_get_any_dag();
-    if(dag == NULL) {
-      PRINTF("RPL: Did not join a DAG before sending DAO\n");
-      return;
-    }
-  } else {
-    dag = n->dag;
-  }
-
+  dag = n->dag;
   instance = dag->instance;
 
 #ifdef RPL_DEBUG_DAO_OUTPUT
@@ -765,23 +789,13 @@ dao_output(rpl_parent_t *n, uint8_t lifetime)
   buffer[pos++] = 0; /* path seq - ignored */
   buffer[pos++] = lifetime;
 
-  if(n == NULL) {
-    uip_create_linklocal_rplnodes_mcast(&addr);
-  } else {
-    uip_ipaddr_copy(&addr, &n->addr);
-  }
-
   PRINTF("RPL: Sending DAO with prefix ");
   PRINT6ADDR(&prefix);
   PRINTF(" to ");
-  if(n != NULL) {
-    PRINT6ADDR(&n->addr);
-  } else {
-    PRINTF("multicast address");
-  }
+  PRINT6ADDR(&n->addr);
   PRINTF("\n");
 
-  uip_icmp6_send(&addr, ICMP6_RPL, RPL_CODE_DAO, pos);
+  uip_icmp6_send(&n->addr, ICMP6_RPL, RPL_CODE_DAO, pos);
 }
 /*---------------------------------------------------------------------------*/
 static void
