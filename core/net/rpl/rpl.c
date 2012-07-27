@@ -119,10 +119,10 @@ rpl_add_route(rpl_dag_t *dag, uip_ipaddr_t *prefix, int prefix_len,
       return NULL;
     }
   } else {
-    PRINTF("RPL: Updated the next hop for prefix ");
+   /* PRINTF("RPL: Updated the next hop for prefix ");
     PRINT6ADDR(prefix);
     PRINTF(" to ");
-    PRINT6ADDR(next_hop);
+    PRINT6ADDR(next_hop);*/
     PRINTF("\n");
     uip_ipaddr_copy(&rep->nexthop, next_hop);
   }
@@ -130,10 +130,10 @@ rpl_add_route(rpl_dag_t *dag, uip_ipaddr_t *prefix, int prefix_len,
   rep->state.lifetime = RPL_LIFETIME(dag->instance, dag->instance->default_lifetime);
   rep->state.learned_from = RPL_ROUTE_FROM_INTERNAL;
 
-  PRINTF("RPL: Added a route to ");
+ /* PRINTF("RPL: Added a route to ");
   PRINT6ADDR(prefix);
   PRINTF("/%d via ", prefix_len);
-  PRINT6ADDR(next_hop);
+  PRINT6ADDR(next_hop);*/
   PRINTF("\n");
 
   return rep;
@@ -149,9 +149,9 @@ rpl_link_neighbor_callback(const rimeaddr_t *addr, int known, int etx) //get inf
 
   uip_ip6addr(&ipaddr, 0xfe80, 0, 0, 0, 0, 0, 0, 0);
   uip_ds6_set_addr_iid(&ipaddr, (uip_lladdr_t *)addr);
-  PRINTF("RPL: Neighbor ");
+ /* PRINTF("RPL: Neighbor ");
   PRINT6ADDR(&ipaddr);
-  PRINTF(" is %sknown. ETX = %u\n", known ? "" : "no longer ", NEIGHBOR_INFO_FIX2ETX(etx));
+  PRINTF(" is %sknown. ETX = %u\n", known ? "" : "no longer ", NEIGHBOR_INFO_FIX2ETX(etx));*/
   PRINTF("\n");
   for(instance = &instance_table[0], end = instance + RPL_MAX_INSTANCES; instance < end; ++instance) {
     if(instance->used == 1 ) {

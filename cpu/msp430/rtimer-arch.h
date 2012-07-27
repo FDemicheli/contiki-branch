@@ -46,7 +46,7 @@
 #ifdef RTIMER_CONF_SECOND
 #define RTIMER_ARCH_SECOND RTIMER_CONF_SECOND
 #else
-#define RTIMER_ARCH_SECOND (4096U*8)
+#define RTIMER_ARCH_SECOND (4096U*8) //vale 32768
 #endif
 
 rtimer_clock_t rtimer_arch_now(void);

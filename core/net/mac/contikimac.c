@@ -96,15 +96,19 @@ struct hdr {
 };
 #endif /* WITH_CONTIKIMAC_HEADER */
 
+/*RTIMER_ARCH_SECOND is the count rate of the timer used to generate timer compare interrupts*/
 /* CYCLE_TIME for channel cca checks, in rtimer ticks. */
 #ifdef CONTIKIMAC_CONF_CYCLE_TIME
 #define CYCLE_TIME (CONTIKIMAC_CONF_CYCLE_TIME)
 #else
-#define CYCLE_TIME (RTIMER_ARCH_SECOND / NETSTACK_RDC_CHANNEL_CHECK_RATE)
+#define CYCLE_TIME (RTIMER_ARCH_SECOND / NETSTACK_RDC_CHANNEL_CHECK_RATE) ///wake-up interval = 125ms = 8Hz
 #endif
+///CYCLE_TIME = 4096 = 32768/8: è il periodo di DUTY CYCLE
+///macro RTIMER_ARCH_SECOND represent the number of ticks per second
+///macro NETSTACK_RDC_CHANNEL_CHECK_RATE is set by 8, dove 8 sono Hz. core --> net --> netstack.h. E' la frequenza degli istanti di ascolto
 
-/* CHANNEL_CHECK_RATE is enforced to be a power of two.
- * If RTIMER_ARCH_SECOND is not also a power of two, there will be an inexact
+/** CHANNEL_CHECK_RATE is enforced to be a power of two.*/
+/* If RTIMER_ARCH_SECOND is not also a power of two, there will be an inexact
  * number of channel checks per second due to the truncation of CYCLE_TIME.
  * This will degrade the effectiveness of phase optimization with neighbors that
  * do not have the same truncation error.
@@ -114,14 +118,16 @@ struct hdr {
 #define SYNC_CYCLE_STARTS                    1
 #endif
 
-/* Are we currently receiving a burst? */
+/* Are we currently receiving a burst? */ ///packet burst = rapid transmission of successive packets after a single wakeup
 static int we_are_receiving_burst = 0;
 /* Has the receiver been awoken by a burst we're sending? */
 static int is_receiver_awake = 0;
 
 /* BURST_RECV_TIME is the maximum time a receiver waits for the
    next packet of a burst when FRAME_PENDING is set. */
-#define INTER_PACKET_DEADLINE               CLOCK_SECOND / 32
+///CLOCK_SECOND corresponds to one second of system time in number of ticks
+#define INTER_PACKET_DEADLINE               CLOCK_SECOND / 32 /*CLOCK_SECOND is the number of interrupts per second to the clock routine 
+                                                                that increments clock_seconds() once every CLOCK_SECOND interrupts.*/
 
 /* ContikiMAC performs periodic channel checks. Each channel check
    consists of two or more CCA checks. CCA_COUNT_MAX is the number of
@@ -133,66 +139,67 @@ static int is_receiver_awake = 0;
    of the channel with CCA_COUNT_MAX_TX consecutive CCAs */
 #define CCA_COUNT_MAX_TX                   6
 
-/* CCA_CHECK_TIME is the time it takes to perform a CCA check. */
+/* CCA_CHECK_TIME is the time it takes to perform a CCA check*/ ///durata di un CCA
 /* Note this may be zero. AVRs have 7612 ticks/sec, but block until cca is done */
-#define CCA_CHECK_TIME                     RTIMER_ARCH_SECOND / 8192
+#define CCA_CHECK_TIME                     RTIMER_ARCH_SECOND / 8192  /**1/8192 = 122us*/
 
-/* CCA_SLEEP_TIME is the time between two successive CCA checks. */
+/** CCA_SLEEP_TIME is the time between two successive CCA checks.*/
 /* Add 1 when rtimer ticks are coarse */
 #if RTIMER_ARCH_SECOND > 8000
-#define CCA_SLEEP_TIME                     RTIMER_ARCH_SECOND / 2000
+#define CCA_SLEEP_TIME                     RTIMER_ARCH_SECOND / 2000 /**1/2000 = 0,5ms = tc sul pdf*/
 #else
 #define CCA_SLEEP_TIME                     (RTIMER_ARCH_SECOND / 2000) + 1
 #endif
-
-/* CHECK_TIME is the total time it takes to perform CCA_COUNT_MAX
-   CCAs. */
-#define CHECK_TIME                         (CCA_COUNT_MAX * (CCA_CHECK_TIME + CCA_SLEEP_TIME))
+///CCA_CHECK_TIME + CCA_SLEEP_TIME = 0.622ms = periodo di un CCA
+/* CHECK_TIME is the total time it takes to perform CCA_COUNT_MAX 
+CCAs. */ ///tempo x eseguire i due CCA 
+#define CHECK_TIME                         (CCA_COUNT_MAX * (CCA_CHECK_TIME + CCA_SLEEP_TIME)) /**1.24ms*/
 
 /* CHECK_TIME_TX is the total time it takes to perform CCA_COUNT_MAX_TX
    CCAs. */
-#define CHECK_TIME_TX                      (CCA_COUNT_MAX_TX * (CCA_CHECK_TIME + CCA_SLEEP_TIME))
+#define CHECK_TIME_TX                      (CCA_COUNT_MAX_TX * (CCA_CHECK_TIME + CCA_SLEEP_TIME))/**3.72ms*/
 
 /* LISTEN_TIME_AFTER_PACKET_DETECTED is the time that we keep checking
    for activity after a potential packet has been detected by a CCA
    check. */
-#define LISTEN_TIME_AFTER_PACKET_DETECTED  RTIMER_ARCH_SECOND / 80
+#define LISTEN_TIME_AFTER_PACKET_DETECTED  RTIMER_ARCH_SECOND / 80 /*1/80 = 12.5ms*/
 
 /* MAX_SILENCE_PERIODS is the maximum amount of periods (a period is
    CCA_CHECK_TIME + CCA_SLEEP_TIME) that we allow to be silent before
-   we turn of the radio. */
-#define MAX_SILENCE_PERIODS                5
+   we turn off the radio. */
+#define MAX_SILENCE_PERIODS                5 /**0.622ms x 5 = 3.11ms*/
 
 /* MAX_NONACTIVITY_PERIODS is the maximum number of periods we allow
    the radio to be turned on without any packet being received, when
    WITH_FAST_SLEEP is enabled. */
-#define MAX_NONACTIVITY_PERIODS            10
+#define MAX_NONACTIVITY_PERIODS            10 /**0.622ms x 10 = 6.22ms*/
 
 
 
 /* STROBE_TIME is the maximum amount of time a transmitted packet
    should be repeatedly transmitted as part of a transmission. */
-#define STROBE_TIME                        (CYCLE_TIME + 2 * CHECK_TIME)
+#define STROBE_TIME                        (CYCLE_TIME + 2 * CHECK_TIME) /**125ms + 2.48ms = 127.48ms*/
 
 /* GUARD_TIME is the time before the expected phase of a neighbor that
-   a transmitted should begin transmitting packets. */
-#define GUARD_TIME                         10 * CHECK_TIME + CHECK_TIME_TX
+   a transmitted should begin transmitting packets. */ ///?????????????????
+#define GUARD_TIME                         10 * CHECK_TIME + CHECK_TIME_TX /**10 x 6.2ms = 62ms*/
 
 /* INTER_PACKET_INTERVAL is the interval between two successive packet transmissions */
-#define INTER_PACKET_INTERVAL              RTIMER_ARCH_SECOND / 5000
+#define INTER_PACKET_INTERVAL              RTIMER_ARCH_SECOND / 5000 /**1/5000 = 0.2ms*/
 
 /* AFTER_ACK_DETECTECT_WAIT_TIME is the time to wait after a potential
    ACK packet has been detected until we can read it out from the
    radio. */
-#define AFTER_ACK_DETECTECT_WAIT_TIME      RTIMER_ARCH_SECOND / 1500
+#define AFTER_ACK_DETECTECT_WAIT_TIME      RTIMER_ARCH_SECOND / 1500 /**1/1500 = 0.666ms*/
 
 /* MAX_PHASE_STROBE_TIME is the time that we transmit repeated packets
    to a neighbor for which we have a phase lock. */
-#define MAX_PHASE_STROBE_TIME              RTIMER_ARCH_SECOND / 60
+#define MAX_PHASE_STROBE_TIME              RTIMER_ARCH_SECOND / 60 /**1/60 = 16.6ms*/
 
 
-/* SHORTEST_PACKET_SIZE is the shortest packet that ContikiMAC
-   allows. Packets have to be a certain size to be able to be detected
+/** SHORTEST_PACKET_SIZE is the shortest packet that ContikiMAC
+   allows*/ 
+/* Packets have to be a certain size to be able to be detected
    by two consecutive CCA checks, and here is where we define this
    shortest size.
    Padded packets will have the wrong ipv6 checksum unless CONTIKIMAC_HEADER
@@ -208,9 +215,11 @@ static int is_receiver_awake = 0;
 #define ACK_LEN 3
 
 #include <stdio.h>
-static struct rtimer rt;
-static struct pt pt;
+static struct rtimer rt; //def in sys/rtimer.h
+static struct pt pt; //def in sys/pt.h. pt = protothread
 
+/*con volatile si identifica una variabile che può essere modificata da un altro processo o thread diverso da quello che l'ha dichiarata, 
+ma sempre all'interno dello stesso programma. info su http://xhack.forumitalian.net/t317-variabili-volatili*/
 static volatile uint8_t contikimac_is_on = 0;
 static volatile uint8_t contikimac_keep_radio_on = 0;
 
@@ -273,16 +282,16 @@ static int broadcast_rate_counter;
 
 /*---------------------------------------------------------------------------*/
 static void
-on(void)
+on(void)//turn the radio on
 {
   if(contikimac_is_on && radio_is_on == 0) {
     radio_is_on = 1;
-    NETSTACK_RADIO.on();
+    NETSTACK_RADIO.on();//def in net/netstack.h e dev/radio.h
   }
 }
 /*---------------------------------------------------------------------------*/
 static void
-off(void)
+off(void)//turn the radio off
 {
   if(contikimac_is_on && radio_is_on != 0 &&
      contikimac_keep_radio_on == 0) {
@@ -291,10 +300,10 @@ off(void)
   }
 }
 /*---------------------------------------------------------------------------*/
-static volatile rtimer_clock_t cycle_start;
+static volatile rtimer_clock_t cycle_start;///rtimer_clock_t è def come: typedef unsigned short rtimer_clock_t in rtimer.h
 static char powercycle(struct rtimer *t, void *ptr);
 static void
-schedule_powercycle(struct rtimer *t, rtimer_clock_t time)
+schedule_powercycle(struct rtimer *t, rtimer_clock_t time) //reset the rtimer
 {
   int r;
 
@@ -303,7 +312,7 @@ schedule_powercycle(struct rtimer *t, rtimer_clock_t time)
     if(RTIMER_CLOCK_LT(RTIMER_TIME(t) + time, RTIMER_NOW() + 2)) {
       time = RTIMER_NOW() - RTIMER_TIME(t) + 2;
     }
-
+   //rtimer_set schedules a real-time task at a specified time in the future
     r = rtimer_set(t, RTIMER_TIME(t) + time, 1,
                    (void (*)(struct rtimer *, void *))powercycle, NULL);
     if(r != RTIMER_OK) {
@@ -357,7 +366,10 @@ powercycle_turn_radio_on(void)
 }
 /*---------------------------------------------------------------------------*/
 static char
-powercycle(struct rtimer *t, void *ptr)
+powercycle(struct rtimer *t, void *ptr) 
+/*The powercycle function implements the duty cycling of the radio by periodically switching the radio on and off. The powercycle function 
+does not control the transmission*/
+///Il nodo calcola l'istante di ascolto successivo
 {
 #if SYNC_CYCLE_STARTS
   static volatile rtimer_clock_t sync_cycle_start;
@@ -367,31 +379,42 @@ powercycle(struct rtimer *t, void *ptr)
   PT_BEGIN(&pt);
 
 #if SYNC_CYCLE_STARTS
+  PRINTF("prova cycle start if\n");
   sync_cycle_start = RTIMER_NOW();
 #else
+  PRINTF("prova cycle start else\n");//usa questo
   cycle_start = RTIMER_NOW();
+  PRINTF("cycle_start else = %u\n",cycle_start);
 #endif
 
   while(1) {
     static uint8_t packet_seen;
     static rtimer_clock_t t0;
     static uint8_t count;
-
+    //PRINTF("RTIMER_ARCH_SECOND = %u\n",RTIMER_ARCH_SECOND);
+    //PRINTF("NETSTACK_RDC_CHANNEL_CHECK_RATE = %d",NETSTACK_RDC_CHANNEL_CHECK_RATE);
+    ///il loro prodotto = 0
 #if SYNC_CYCLE_STARTS
     /* Compute cycle start when RTIMER_ARCH_SECOND is not a multiple of CHANNEL_CHECK_RATE */
     if (sync_cycle_phase++ == NETSTACK_RDC_CHANNEL_CHECK_RATE) {
        sync_cycle_phase = 0;
        sync_cycle_start += RTIMER_ARCH_SECOND;
        cycle_start = sync_cycle_start;
-    } else {
+       PRINTF("prova 1\n");
+    } 
+    else {
 #if (RTIMER_ARCH_SECOND * NETSTACK_RDC_CHANNEL_CHECK_RATE) > 65535
        cycle_start = sync_cycle_start + ((unsigned long)(sync_cycle_phase*RTIMER_ARCH_SECOND))/NETSTACK_RDC_CHANNEL_CHECK_RATE;
+       //PRINTF("prova 2\n");
 #else
        cycle_start = sync_cycle_start + (sync_cycle_phase*RTIMER_ARCH_SECOND)/NETSTACK_RDC_CHANNEL_CHECK_RATE;
+       //PRINTF("prova 3\n");
 #endif
     }
 #else
+    PRINTF("prova 4\n");
     cycle_start += CYCLE_TIME;
+    PRINTF("cycle_start = %u\n",cycle_start);
 #endif
 
     packet_seen = 0;
@@ -560,7 +583,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
     }
   } else {
 #if UIP_CONF_IPV6
-    PRINTDEBUG("contikimac: send unicast to %02x%02x:%02x%02x:%02x%02x:%02x%02x\n",
+  /*  PRINTDEBUG("contikimac: send unicast to %02x%02x:%02x%02x:%02x%02x:%02x%02x\n",
                packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[0],
                packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[1],
                packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[2],
@@ -568,7 +591,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
                packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[4],
                packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[5],
                packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[6],
-               packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[7]);
+               packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[7]);*/
 #else /* UIP_CONF_IPV6 */
     PRINTDEBUG("contikimac: send unicast to %u.%u\n",
                packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[0],
@@ -659,8 +682,8 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
      instread. */
   if(NETSTACK_RADIO.receiving_packet() || NETSTACK_RADIO.pending_packet()) {
     we_are_sending = 0;
-    PRINTF("contikimac: collision receiving %d, pending %d\n",
-           NETSTACK_RADIO.receiving_packet(), NETSTACK_RADIO.pending_packet());
+   /* PRINTF("contikimac: collision receiving %d, pending %d\n",
+           NETSTACK_RADIO.receiving_packet(), NETSTACK_RADIO.pending_packet());*/
     return MAC_TX_COLLISION;
   }
   
@@ -789,10 +812,10 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
 
   off();
 
-  PRINTF("contikimac: send (strobes=%u, len=%u, %s, %s), done\n", strobes,
+ /* PRINTF("contikimac: send (strobes=%u, len=%u, %s, %s), done\n", strobes,
          packetbuf_totlen(),
          got_strobe_ack ? "ack" : "no ack",
-         collisions ? "collision" : "no collision");
+         collisions ? "collision" : "no collision");*/
 
 #if CONTIKIMAC_CONF_COMPOWER
   /* Accumulate the power consumption for the packet transmission. */
@@ -826,8 +849,8 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
 #if WITH_PHASE_OPTIMIZATION
 
   if(is_known_receiver && got_strobe_ack) {
-    PRINTF("no miss %d wake-ups %d\n", packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[0],
-           strobes);
+ /*   PRINTF("no miss %d wake-ups %d\n", packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[0],
+           strobes);*/
   }
 
   if(!is_broadcast) {
@@ -923,7 +946,7 @@ input_packet(void)
     struct hdr *chdr;
     chdr = packetbuf_dataptr();
     if(chdr->id != CONTIKIMAC_ID) {
-      PRINTF("contikimac: failed to parse hdr (%u)\n", packetbuf_totlen());
+    //  PRINTF("contikimac: failed to parse hdr (%u)\n", packetbuf_totlen());
       return;
     }
     packetbuf_hdrreduce(sizeof(struct hdr));
@@ -986,7 +1009,7 @@ input_packet(void)
       compower_clear(&current_packet);
 #endif /* CONTIKIMAC_CONF_COMPOWER */
 
-      PRINTDEBUG("contikimac: data (%u)\n", packetbuf_datalen());
+      //PRINTDEBUG("contikimac: data (%u)\n", packetbuf_datalen());
       NETSTACK_MAC.input();
       return;
     } else {
@@ -1015,7 +1038,7 @@ init(void)
 }
 /*---------------------------------------------------------------------------*/
 static int
-turn_on(void)
+turn_on(void)//Turn the MAC layer on
 {
   if(contikimac_is_on == 0) {
     contikimac_is_on = 1;
@@ -1027,7 +1050,7 @@ turn_on(void)
 }
 /*---------------------------------------------------------------------------*/
 static int
-turn_off(int keep_radio_on)
+turn_off(int keep_radio_on) //Turn the MAC layer off
 {
   contikimac_is_on = 0;
   contikimac_keep_radio_on = keep_radio_on;
@@ -1046,7 +1069,7 @@ duty_cycle(void)
   return (1ul * CLOCK_SECOND * CYCLE_TIME) / RTIMER_ARCH_SECOND;
 }
 /*---------------------------------------------------------------------------*/
-const struct rdc_driver contikimac_driver = {
+const struct rdc_driver contikimac_driver = { //struct rdc_driver si trova in net -> mac -> rdc.h
   "ContikiMAC",
   init,
   qsend_packet,

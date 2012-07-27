@@ -30,10 +30,10 @@
  *
  * @(#)$Id: cc2420.c,v 1.63 2011/01/09 21:09:28 adamdunkels Exp $
  */
-/*
+/* 
  * This code is almost device independent and should be easy to port.
  */
-
+                          ///IMPLEMENTA LA RADIO DEL T-mote sky
 #include <string.h>
 
 #include "contiki.h"
@@ -115,6 +115,8 @@ static uint8_t volatile pending;
     t0 = RTIMER_NOW();                                                  \
     while(!(cond) && RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + (max_time)));   \
   } while(0)
+/**La funzione RTIMER_CLOCK_LT (a,b) rileva il cambio di segno nella differenza tra due numeri a e b (vedi sys/rtimer.h). In questo caso viene 
+   usata per misurare un intervallo di tempo di durata max_time.*/
 
 volatile uint8_t cc2420_sfd_counter;
 volatile uint16_t cc2420_sfd_start_time;
@@ -143,7 +145,7 @@ static int cc2420_cca(void);
 signed char cc2420_last_rssi;
 uint8_t cc2420_last_correlation;
 
-const struct radio_driver cc2420_driver =
+const struct radio_driver cc2420_driver = //struct radio_driver si trova in core -> dev -> radio.h
   {
     cc2420_init,
     cc2420_prepare,
@@ -206,9 +208,22 @@ on(void)
 {
   CC2420_ENABLE_FIFOP_INT();
   strobe(CC2420_SRXON);
-
+  ///Lascia passare il tempo entro cui si spegne la radio e si torna ad accendere
   BUSYWAIT_UNTIL(status() & (BV(CC2420_XOSC16M_STABLE)), RTIMER_SECOND / 100);
+/**L'attesa del momento per spegnere la radio è data dalla condizione logica: "status() & (BV(CC2420_XOSC16M_STABLE))",
+   che testa lo stato della radio. Guarda quanto vale un bit della radio, che indica lo stato del suo chip; ovvero, secondo la documentazione del
+   chip CC2420:
+                 XOSC16M_STABLE = /0 : l'oscillatore da 16 MHz è operativo
+                                  \1 : l'oscillatore da 16 MHz non è operativo
+                                  
+   La funzione status() ritorna un byte di stato che in cc2420_const.h è def come CC2420_SNOP = 0x00, che è un registro di tipo S della radio
+   e ha come effetto di confermare la lettura del bit della radio. 
 
+   max_time = RTIMER_SECOND / 100 = 10 ms. RTIMER_SECOND è def in sys/rtimer.h
+   
+   NOTA: Un registro S è un registro a mappatura di bit; esso utilizza un numero per identificare una serie di impostazioni. La mappatura dei bit 
+   consente di concentrare un considerevole quantitativo di informazioni all’interno di uno spazio minimo.
+  */
   ENERGEST_ON(ENERGEST_TYPE_LISTEN);
   receive_on = 1;
 }

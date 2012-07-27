@@ -134,15 +134,15 @@ calculate_rank(rpl_parent_t *p, rpl_rank_t base_rank)
     }
     rank_increase = NEIGHBOR_INFO_FIX2ETX(INITIAL_LINK_METRIC) * RPL_MIN_HOPRANKINC; //valore intero
     //rank_increase = NEIGHBOR_INFO_FIX2ETX(80) * 256 = (80/16) * 256 = 5 * 256 = 1280
-    PRINTF("rank_increase (1280) = %d\n",rank_increase);
+    //PRINTF("rank_increase (1280) = %d\n",rank_increase);
   } else {
     /* multiply first, then scale down to avoid truncation effects */
     rank_increase = NEIGHBOR_INFO_FIX2ETX(p->link_metric * p->dag->instance->min_hoprankinc); //valore intero
     //rank_increase = p->link_metric * 256 = ETX * 256
-    PRINTF("rank_increase = %d\n",rank_increase);
+    //PRINTF("rank_increase = %d\n",rank_increase);
     if(base_rank == 0) {
       base_rank = p->rank; ///base_rank è in sostanza il rank del parent
-      PRINTF("base rank = %d\n", base_rank);
+      //PRINTF("base rank = %d\n", base_rank);
     }
   }
 
@@ -153,7 +153,7 @@ calculate_rank(rpl_parent_t *p, rpl_rank_t base_rank)
    /* Calculate the rank based on the new rank information from DIO or
       stored otherwise. */
     new_rank = base_rank + rank_increase; ///parent_rank + dipende
-    PRINTF("new rank = base_rank %d + rank_increase %d = %d\n",base_rank, rank_increase, new_rank);
+    //PRINTF("new rank = base_rank %d + rank_increase %d = %d\n",base_rank, rank_increase, new_rank);
   }
 
   return new_rank;
@@ -188,11 +188,13 @@ best_parent(rpl_parent_t *p1, rpl_parent_t *p2) //Compares two parents and retur
 	     
   //PRINTF("p1 = %d\n",p1);
   //PRINTF("p2 = %d\n",p2);
-  
+  PRINTF("BEST PARENT: calculate path metric. Calcolo p1_metric\n");
   p1_metric = calculate_path_metric(p1);
-//  PRINTF("p1_metric = %u\n",p1_metric);
+  PRINTF("p1_metric = %u\n",p1_metric);
+  
+  PRINTF("BEST PARENT: calculate path metric. Calcolo p2_metric\n");
   p2_metric = calculate_path_metric(p2);
- // PRINTF("p2_metric = %u\n",p2_metric);
+  PRINTF("p2_metric = %u\n",p2_metric);
 
   /* Maintain stability of the preferred parent in case of similar ranks. */
   /*Il preferred parent viene calcolato in rpl-dag.c*/
@@ -232,8 +234,10 @@ update_metric_container(rpl_instance_t *instance)
   }
 
   if(dag->rank == ROOT_RANK(instance)) {
+    PRINTF("path_metric = 0\n");
     path_metric = 0;
   } else {
+    PRINTF("calcolo path_metric\n");
     path_metric = calculate_path_metric(dag->preferred_parent);//viene aggiornata la metrica di cammino in base al nuovo preferred parent
   }
   
@@ -249,21 +253,23 @@ update_metric_container(rpl_instance_t *instance)
 /*  PRINTF("RPL: My path ETX to the root is %u.%u\n",
 	instance->mc.obj.etx / RPL_DAG_MC_ETX_DIVISOR,
 	(instance->mc.obj.etx % RPL_DAG_MC_ETX_DIVISOR * 100) / RPL_DAG_MC_ETX_DIVISOR);*/
-
+/*
 #elif RPL_DAG_MC == RPL_DAG_MC_ENERGY
 
-/*  instance->mc.type = RPL_DAG_MC_ENERGY;//la metrica è il consumo di energia
+  instance->mc.type = RPL_DAG_MC_ENERGY;//la metrica è il consumo di energia
   instance->mc.length = sizeof(instance->mc.obj.energy);
 
   if(dag->rank == ROOT_RANK(instance)) { //viene selezionato un nodo alimentato oppure con la batteria
-    type = RPL_DAG_MC_ENERGY_TYPE_MAINS;
+    type = RPL_DAG_MC_ENERGY_TYPE_MAINS; //nodo alimentato
+    PRINTF("Sono il root. type = MAINS\n");
   } else {
-    type = RPL_DAG_MC_ENERGY_TYPE_BATTERY;
+    type = RPL_DAG_MC_ENERGY_TYPE_BATTERY; //nodo con la batteria
+    PRINTF("type = BATTERY\n");
   }
 
   instance->mc.obj.energy.flags = type << RPL_DAG_MC_ENERGY_TYPE;
-  instance->mc.obj.energy.energy_est = path_metric;//viene stimata l'energia rimanente
-*/
+  instance->mc.obj.energy.energy_est = path_metric;//viene stimata l'energia rimanente??
+  PRINTF("mc.obj.energy.energy_est = %d\n", instance->mc.obj.energy.energy_est);*/
 #else
 
 #error "Unsupported RPL_DAG_MC configured. See rpl.h."

@@ -74,8 +74,9 @@ void rtimer_init(void);
 struct rtimer;
 typedef void (* rtimer_callback_t)(struct rtimer *t, void *ptr);
 
-/**
- * \brief      Representation of a real-time task
+/**       NOTA: un sistema real-time deve garantire che una elaborazione (o task) termini entro un dato vincolo temporale o scadenza.
+                Rispondere ad un evento in tempo reale significa farlo ad una velocità che sia possibile predeterminare.
+ * \brief      Representation of a real-time task 
  *
  *             This structure represents a real-time task and is used
  *             by the real-time module and the architecture specific
@@ -149,7 +150,7 @@ void rtimer_arch_init(void);
 void rtimer_arch_schedule(rtimer_clock_t t);
 /*rtimer_clock_t rtimer_arch_now(void);*/
 
-#define RTIMER_SECOND RTIMER_ARCH_SECOND
+#define RTIMER_SECOND RTIMER_ARCH_SECOND //RTIMER_ARCH_SECOND definito in rtimer-arch.h
 
 #endif /* __RTIMER_H__ */
 

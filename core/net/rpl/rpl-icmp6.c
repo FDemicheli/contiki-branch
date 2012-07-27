@@ -312,18 +312,19 @@ dio_input(void) /** cosa succede alla ricezione di un DIO  */
 
       if(dio.mc.type == RPL_DAG_MC_ETX) {
         dio.mc.obj.etx = get16(buffer, i + 6);
-	PRINTF("dio.mc.obj.etx = %u\n", dio.mc.obj.etx);
+	PRINTF("dio_input: dio.mc.obj.etx = %u\n", dio.mc.obj.etx);
         //PRINTF("RPL: DAG MC: type %u, flags %u, aggr %u, prec %u, length %u, ETX %u\n",
-	PRINTF("RPL: DAG MC: type %u, ETX %u\n",       
-	       (unsigned)dio.mc.type,  
+	//PRINTF("RPL: DAG MC: type %u, ETX %u\n",       
+	  //     (unsigned)dio.mc.type,  
 	       //(unsigned)dio.mc.flags, 
 	       //(unsigned)dio.mc.aggr, 
 	       //(unsigned)dio.mc.prec, 
 	       //(unsigned)dio.mc.length, 
-	       (unsigned)dio.mc.obj.etx);
+	    //   (unsigned)dio.mc.obj.etx);
       } else if(dio.mc.type == RPL_DAG_MC_ENERGY) {
         dio.mc.obj.energy.flags = buffer[i + 6];
         dio.mc.obj.energy.energy_est = buffer[i + 7];
+	//PRINTF("energy_est = %d\n", dio.mc.obj.energy.energy_est);
       } else {
        PRINTF("RPL: Unhandled DAG MC type: %u\n", (unsigned)dio.mc.type);
        return;
@@ -797,8 +798,8 @@ dao_ack_output(rpl_instance_t *instance, uip_ipaddr_t *dest, uint8_t sequence)
 {
   unsigned char *buffer;
 
-  /*PRINTF("RPL: Sending a DAO ACK with sequence number %d to ", sequence);
-  PRINT6ADDR(dest);*/
+  PRINTF("RPL: Sending a DAO ACK with sequence number %d to ", sequence);
+  PRINT6ADDR(dest);
   PRINTF("\n");
 
   buffer = UIP_ICMP_PAYLOAD;

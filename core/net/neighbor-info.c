@@ -88,7 +88,7 @@ update_metric(const rimeaddr_t *dest, int packet_metric) ///aggiorna la link_met
     ///etx_update = 0.9 * etx_recorded_until_now + (0.1) * etx_last
     new_metric = ((uint16_t)recorded_metric * ETX_ALPHA +
                (uint16_t)packet_metric * (ETX_SCALE - ETX_ALPHA)) / ETX_SCALE;
-  //  PRINTF("link_metric con metricp = 16, quindi dopo EWMA vale %d\n", new_metric);
+    PRINTF("link_metric con metricp = 16, quindi dopo EWMA vale %d\n", new_metric);
   }
   //I dati vengono convertiti da un valore di punto fisso a intero:
   PRINTF("neighbor-info: ETX changed from %d to %d (packet ETX = %d) %d\n",
@@ -136,7 +136,7 @@ neighbor_info_packet_sent(int status, int numtx) ///Notify the neighbor informat
   if(rimeaddr_cmp(dest, &rimeaddr_null)) {
     return;
   }
-  PRINTF("numtx = %d\n", numtx);
+  //PRINTF("numtx = %d\n", numtx);
   packet_metric = numtx; //numtx vale 1
 
   PRINTF("neighbor-info: packet sent to %d.%d, status=%d, metric=%u\n",
@@ -166,7 +166,7 @@ neighbor_info_packet_sent(int status, int numtx) ///Notify the neighbor informat
        errors occur. */
     return;
   }
-
+  PRINTF("Neighbor-info: update metric\n");
   update_metric(dest, packet_metric);
   //PRINTF("packet_metric = %d\n",packet_metric);
 }

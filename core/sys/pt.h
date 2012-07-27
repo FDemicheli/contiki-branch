@@ -76,7 +76,7 @@ struct pt {
  *
  * \hideinitializer
  */
-#define PT_INIT(pt)   LC_INIT((pt)->lc)
+#define PT_INIT(pt)   LC_INIT((pt)->lc) //lc = local continuation
 
 /** @} */
 

@@ -192,13 +192,13 @@ void cc2420_set_cca_threshold(int value);
     CC2420_SPI_DISABLE();                                    \
   } while(0)
 
-/* Read status of the CC2420 */
-#define CC2420_GET_STATUS(s)                       \
+/* Read status of the CC2420. CC2420_SNOP è def. in CC2420_const.h e vale 0x00 */
+#define CC2420_GET_STATUS(s)                    \
   do {                                          \
     CC2420_SPI_ENABLE();                        \
     SPI_WRITE(CC2420_SNOP);                     \
     s = SPI_RXBUF;                              \
     CC2420_SPI_DISABLE();                       \
-  } while (0)
+  } while (0)                                   \
 
 #endif /* __CC2420_H__ */

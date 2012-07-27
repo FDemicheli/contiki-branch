@@ -112,8 +112,8 @@ remove_parents(rpl_dag_t *dag, rpl_rank_t minimum_rank)
 {
   rpl_parent_t *p, *p2;
 
-  PRINTF("RPL: Removing parents (minimum rank %u)\n",
-	minimum_rank);
+//  PRINTF("RPL: Removing parents (minimum rank %u)\n",
+//	minimum_rank);
 
   for(p = list_head(dag->parents); p != NULL; p = p2) {
     p2 = p->next;
@@ -265,8 +265,8 @@ rpl_set_root(uint8_t instance_id, uip_ipaddr_t *dag_id)
   instance->of->update_metric_container(instance);//il root accede alla OF in rpl-of-etx e setta i parametri
   default_instance = instance;
 
-  PRINTF("RPL: Node set to be a DAG root with DAG ID ");
-  PRINT6ADDR(&dag->dag_id);
+  //PRINTF("RPL: Node set to be a DAG root with DAG ID ");
+  //PRINT6ADDR(&dag->dag_id);
   PRINTF("\n");
 
   ANNOTATE("#A root=%u\n", dag->dag_id.u8[sizeof(dag->dag_id) - 1]);
@@ -504,6 +504,7 @@ rpl_add_parent(rpl_dag_t *dag, rpl_dio_t *dio, uip_ipaddr_t *addr) //viene aggiu
   p->dag = dag;
   p->rank = dio->rank;
   p->dtsn = dio->dtsn; //usato x il mantenimento delle rotte dal nodo radice
+  PRINTF("add parent: link metric = INITIAL_LINK_METRIC\n");
   p->link_metric = INITIAL_LINK_METRIC; //riga 138 in rpl-private.h, mentre link_metric è nella struct rpl_parent in rpl.h
   memcpy(&p->mc, &dio->mc, sizeof(p->mc));
   list_add(dag->parents, p);
@@ -613,7 +614,7 @@ rpl_select_dag(rpl_instance_t *instance, rpl_parent_t *p) //seleziona il dag pre
     instance->current_dag->joined = 0;
     instance->current_dag = best_dag;
   }
-
+  PRINTF("update mc-select dag\n");
   instance->of->update_metric_container(instance);
   /* Update the DAG rank. */ //all'inizio è 256 xchè il primo nodo è il root e quindi base_rank == 0
   best_dag->rank = instance->of->calculate_rank(best_dag->preferred_parent, 0);
@@ -652,10 +653,10 @@ rpl_select_dag(rpl_instance_t *instance, rpl_parent_t *p) //seleziona il dag pre
 }
 /************************************************************************/
 rpl_parent_t *
-rpl_select_parent(rpl_dag_t *dag) //viene selezionato il genitore (preferito??) tramite la funzione obiettivo
+rpl_select_parent(rpl_dag_t *dag) //viene selezionato il genitore preferito tramite la funzione obiettivo
 {
   rpl_parent_t *p, *best;
-
+  PRINTF("RPL-DAG: select_parent. Vado in rpl-of-etx\n");
   best = NULL;
   for(p = list_head(dag->parents); p != NULL; p = p->next) {
     if(p->rank == INFINITE_RANK) {
@@ -853,6 +854,7 @@ rpl_join_instance(uip_ipaddr_t *from, rpl_dio_t *dio)
   memcpy(&dag->prefix_info, &dio->prefix_info, sizeof(rpl_prefix_t));
 
   dag->preferred_parent = p;
+  PRINTF("update mc-join istance\n");
   instance->of->update_metric_container(instance);
   dag->rank = instance->of->calculate_rank(p, 0);
   /* So far this is the lowest rank we are aware of.--> questo è il minimo rank di cui siamo a conoscenza */
@@ -1094,7 +1096,7 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio) //processa il pck e vede le 
   rpl_instance_t *instance;
   rpl_dag_t *dag, *previous_dag;
   rpl_parent_t *p;
-
+  PRINTF("process_dio\n");
   if(dio->mop != RPL_MOP_DEFAULT) {
   //  PRINTF("RPL: Ignoring a DIO with an unsupported MOP: %d\n", dio->mop);
     return;
@@ -1126,6 +1128,7 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio) //processa il pck e vede le 
       PRINTF("RPL: Root received inconsistent DIO version number\n");
       dag->version = dio->version;
       RPL_LOLLIPOP_INCREMENT(dag->version);
+      PRINTF("reset dio timer\n");
       rpl_reset_dio_timer(instance);
     } else {
       global_repair(from, dag, dio);
@@ -1137,6 +1140,7 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio) //processa il pck e vede le 
     /* The DIO sender is on an older version of the DAG. */
     PRINTF("RPL: old version received => inconsistency detected\n");
     if(dag->joined) {
+      PRINTF("reset dio timer\n");
       rpl_reset_dio_timer(instance);
       return;
     }
@@ -1147,6 +1151,7 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio) //processa il pck e vede le 
            (unsigned)dio->rank);
     return;
   } else if(dio->rank == INFINITE_RANK && dag->joined) {
+    PRINTF("reset dio timer\n");
     rpl_reset_dio_timer(instance);
   }
 
@@ -1194,7 +1199,7 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio) //processa il pck e vede le 
       PRINTF("RPL: Received consistent DIO\n"); //la consistenza è data dal fatto che i rank del tx e rx sono uguali
       if(dag->joined) {
         instance->dio_counter++; //viene incrementata la cost c xchè il DIO rx è consistente
-      PRINTF("Il contatore c = %d\n", instance->dio_counter);  
+      //PRINTF("Il contatore c = %d\n", instance->dio_counter);  
       }
     } else {
       p->rank=dio->rank;
@@ -1209,7 +1214,6 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio) //processa il pck e vede le 
 	 p->rank, p->mc.obj.etx, p->link_metric, instance->mc.obj.etx);
 
   /* We have allocated a candidate parent; process the DIO further (piu avanti). */
-
   memcpy(&p->mc, &dio->mc, sizeof(p->mc));
   if(rpl_process_parent_event(instance, p) == 0) {
     PRINTF("RPL: The candidate parent is rejected\n");

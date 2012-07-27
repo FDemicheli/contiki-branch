@@ -116,7 +116,7 @@ powertrace_print(char *str)
   all_radio = energest_type_time(ENERGEST_TYPE_LISTEN) +
     energest_type_time(ENERGEST_TYPE_TRANSMIT);
 
-  /*printf("%s %lu P %d.%d %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu (radio %d.%02d%% / %d.%02d%% tx %d.%02d%% / %d.%02d%% listen %d.%02d%% / %d.%02d%%)\n",
+  printf("%s %lu P %d.%d %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu (radio %d.%02d%% / %d.%02d%% tx %d.%02d%% / %d.%02d%% listen %d.%02d%% / %d.%02d%%)\n",
          str,
          clock_time(), rimeaddr_node_addr.u8[0], rimeaddr_node_addr.u8[1], seqno,
          all_cpu, all_lpm, all_transmit, all_listen, all_idle_transmit, all_idle_listen,
@@ -132,12 +132,13 @@ powertrace_print(char *str)
          (int)((100L * all_listen) / all_time),
          (int)((10000L * all_listen) / all_time - (100L * all_listen / all_time) * 100),
          (int)((100L * listen) / time),
-         (int)((10000L * listen) / time - (100L * listen / time) * 100));*/
+         (int)((10000L * listen) / time - (100L * listen / time) * 100));
+ /*Da usare x il file Matlab
   printf("%s %lu P %d.%d %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu\n",
          str,
          clock_time(), rimeaddr_node_addr.u8[0], rimeaddr_node_addr.u8[1], seqno,
          all_cpu, all_lpm, all_transmit, all_listen, all_idle_transmit, all_idle_listen,
-         cpu, lpm, transmit, listen, idle_transmit, idle_listen,all_time,time);
+         cpu, lpm, transmit, listen, idle_transmit, idle_listen,all_time,time);*/
 
   for(s = list_head(stats_list); s != NULL; s = list_item_next(s)) {
 
