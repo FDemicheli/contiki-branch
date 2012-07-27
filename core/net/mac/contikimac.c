@@ -236,6 +236,7 @@ static volatile unsigned char we_are_sending = 0;
 static volatile unsigned char radio_is_on = 0;
 
 #define DEBUG 0
+//#define DEBUG 1
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -324,7 +325,7 @@ schedule_powercycle(struct rtimer *t, rtimer_clock_t time)
     r = rtimer_set(t, RTIMER_TIME(t) + time, 1,
                    (void (*)(struct rtimer *, void *))powercycle, NULL);
     if(r != RTIMER_OK) {
-      printf("schedule_powercycle: could not set rtimer\n");
+     // printf("schedule_powercycle: could not set rtimer\n");
     }
   }
 }
@@ -343,7 +344,7 @@ schedule_powercycle_fixed(struct rtimer *t, rtimer_clock_t fixed_time)
     r = rtimer_set(t, fixed_time, 1,
                    (void (*)(struct rtimer *, void *))powercycle, NULL);
     if(r != RTIMER_OK) {
-      printf("schedule_powercycle: could not set rtimer\n");
+      //printf("schedule_powercycle: could not set rtimer\n");
     }
   }
 }
@@ -696,8 +697,8 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
      instread. */
   if(NETSTACK_RADIO.receiving_packet() || NETSTACK_RADIO.pending_packet()) {
     we_are_sending = 0;
-    PRINTF("contikimac: collision receiving %d, pending %d\n",
-           NETSTACK_RADIO.receiving_packet(), NETSTACK_RADIO.pending_packet());
+    //PRINTF("contikimac: collision receiving %d, pending %d\n",
+      //     NETSTACK_RADIO.receiving_packet(), NETSTACK_RADIO.pending_packet());
     return MAC_TX_COLLISION;
   }
   
@@ -744,7 +745,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
   if(collisions > 0) {
     we_are_sending = 0;
     off();
-    PRINTF("contikimac: collisions before sending\n");
+    //PRINTF("contikimac: collisions before sending\n");
     contikimac_is_on = contikimac_was_on;
     return MAC_TX_COLLISION;
   }
@@ -768,7 +769,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
     watchdog_periodic();
 
     if((is_receiver_awake || is_known_receiver) && !RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + MAX_PHASE_STROBE_TIME)) {
-      PRINTF("miss to %d\n", packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[0]);
+     // PRINTF("miss to %d\n", packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[0]);
       break;
     }
 
@@ -792,7 +793,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
         }
       } else if (ret == RADIO_TX_NOACK) {
       } else if (ret == RADIO_TX_COLLISION) {
-          PRINTF("contikimac: collisions while sending\n");
+         // PRINTF("contikimac: collisions while sending\n");
           collisions++;
       }
 	  wt = RTIMER_NOW();
@@ -815,7 +816,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
           encounter_time = txtime;
           break;
         } else {
-          PRINTF("contikimac: collisions while sending\n");
+       //   PRINTF("contikimac: collisions while sending\n");
           collisions++;
         }
       }
