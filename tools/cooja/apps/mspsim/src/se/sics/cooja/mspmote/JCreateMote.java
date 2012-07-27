@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, Swedish Institute of Computer Science.
+ * Copyright (c) 2010, Swedish Institute of Computer Science.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,50 +25,54 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $Id: IdIPDistributor.java,v 1.2 2009/09/17 13:20:03 fros4943 Exp $
  */
 
-package se.sics.cooja.ipdistributors;
-import java.util.Vector;
-import se.sics.cooja.*;
+package se.sics.cooja.mspmote;
+import java.io.File;
+
+import org.apache.log4j.Logger;
+
+import se.sics.cooja.Simulation;
+import se.sics.cooja.mspmote.interfaces.CoojaM25P80;
+import se.sics.cooja.mspmote.interfaces.SkyCoffeeFilesystem;
+import se.sics.mspsim.platform.jcreate.JCreateNode;
 
 /**
- * Generates IP addresses on the form 10.[id/256 mod 256*256].[id mod 256].1.
- * 
- * Observe!
- * - ID must be set before this is called (otherwise IP=0.0.0.0).
- * - Only supports 256*256 motes, (IPs will wrap if above).
- * 
- * @author Fredrik Osterlind
+ * @author Fredrik Osterlind, Niclas Finne
  */
-@ClassDescription("From ID (10.id.id.1)")
-public class IdIPDistributor extends IPDistributor {
-  private Vector<String> generatedIPAddresses;
+public class JCreateMote extends MspMote {
 
-  /**
-   * Creates a Id IP distributor.
-   * @param newMotes All motes which later will be assigned IP numbers.
-   */
-  public IdIPDistributor(Vector<Mote> newMotes) {
-    generatedIPAddresses = new Vector<String>();
+    private static Logger logger = Logger.getLogger(JCreateMote.class);
 
-    for (int i=0; i < newMotes.size(); i++) {
-      int moteId = newMotes.get(i).getID();
-      generatedIPAddresses.add("10." + 
-          (moteId / 256 % (256*256))
-          + "." + 
-          (moteId % 256)
-          + ".1");
+    private JCreateNode mote;
+
+    public JCreateMote(MspMoteType moteType, Simulation sim) {
+        super(moteType, sim);
     }
 
-  }
+    protected boolean initEmulator(File fileELF) {
+        try {
+            mote = new JCreateNode();
+            registry = mote.getRegistry();
+            prepareMote(fileELF, mote);
+            mote.setFlash(new CoojaM25P80(mote.getCPU()));
+        } catch (Exception e) {
+            logger.fatal("Error when creating JCreate mote: ", e);
+            return false;
+        }
+        return true;
+    }
 
-  public String getNextIPAddress() {
-    if (generatedIPAddresses.size() > 0)
-      return generatedIPAddresses.remove(0);
-    else
-      return "0.0.0.0";
-  }
+    public void idUpdated(int newID) {
+        mote.setNodeID(newID);
+    }
+
+    public SkyCoffeeFilesystem getFilesystem() {
+        return getInterfaces().getInterfaceOfType(SkyCoffeeFilesystem.class);
+    }
+
+    public String toString() {
+        return "JCreate " + getID();
+    }
 
 }
