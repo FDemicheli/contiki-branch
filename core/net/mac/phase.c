@@ -37,6 +37,12 @@
  *         Adam Dunkels <adam@sics.se>
  */
 
+/* Modified by RMonica
+ * Patches: - different nodes may have different cycle times
+ *          - add RPL function RPL_DAG_MC_AVG_DELAY
+ *          - phase discovery by test packet
+ */
+
 #include "net/mac/phase.h"
 #include "net/packetbuf.h"
 #include "sys/clock.h"
@@ -45,6 +51,7 @@
 #include "net/queuebuf.h"
 #include "dev/watchdog.h"
 #include "dev/leds.h"
+#include "net/neighbor-info.h"
 
 struct phase_queueitem {
   struct ctimer timer;
@@ -60,6 +67,20 @@ struct phase_queueitem {
 #define MAX_NOACKS            16
 
 #define MAX_NOACKS_TIME       CLOCK_SECOND * 30
+
+#define UNKNOWN_CYCLE_TIME (MAX_CYCLE_TIME + 1)     // no cycle time may be higher than MAX_CYCLE_TIME
+#define UNKNOWN_TIME       (RTIMER_ARCH_SECOND + 1) // phases are saved mod 1 second
+
+/* When using the routing function RPL_DAG_MC_AVG_DELAY
+ * the following define may be set to 1
+ * to send test packets and discover the phase of the neighbors
+ * and make faster decisions during the formation of the DAG
+ */
+#ifndef PHASE_DISCOVERY_USE_TEST_PACKET
+#define PHASE_DISCOVERY_USE_TEST_PACKET 1
+#endif
+#define UNKNOWN_TIME_WAITING_FOR_PHASE (RTIMER_ARCH_SECOND + 2)   // phase discovery in progress
+#define UNKNOWN_TIME_PHASE_DISC_FAILED (RTIMER_ARCH_SECOND + 3)   // phase discovery failed
 
 MEMB(queued_packets_memb, struct phase_queueitem, PHASE_QUEUESIZE);
 
@@ -85,6 +106,22 @@ find_neighbor(const struct phase_list *list, const rimeaddr_t *addr)
   return NULL;
 }
 /*---------------------------------------------------------------------------*/
+/* Function added by RMonica
+ *
+ * this function initializes a variable of type "struct phase" (defined in phase.h)
+ * with default values
+ */
+void
+init_single_phase(struct phase * e)
+{
+  e->time = UNKNOWN_TIME;
+#if PHASE_DRIFT_CORRECT
+  e->drift = 0;
+#endif
+  e->noacks = 0;
+  e->cycle_time = UNKNOWN_CYCLE_TIME;
+}
+/*---------------------------------------------------------------------------*/
 void
 phase_remove(const struct phase_list *list, const rimeaddr_t *neighbor)
 {
@@ -102,6 +139,15 @@ phase_update(const struct phase_list *list,
              int mac_status)
 {
   struct phase *e;
+
+// Modification by RMonica
+// avoid saving phases higher than one second (all cycle times are divisors of the second)
+// because number greater than RTIMER_ARCH_SECOND are special values (UNKNOWN_TIME and so on)
+#if RTIMER_ARCH_SECOND & (RTIMER_ARCH_SECOND - 1)
+  time %= RTIMER_ARCH_SECOND;
+#else
+  time &= RTIMER_ARCH_SECOND - 1;
+#endif
 
   /* If we have an entry for this neighbor already, we renew it. */
   e = find_neighbor(list, neighbor);
@@ -141,14 +187,161 @@ phase_update(const struct phase_list *list,
         e = list_chop(*list->list);
       }
       rimeaddr_copy(&e->neighbor, neighbor);
+      init_single_phase(e);
       e->time = time;
-#if PHASE_DRIFT_CORRECT
-      e->drift = 0;
-#endif
-      e->noacks = 0;
       list_push(*list->list, e);
     }
   }
+
+  // Modification by RMonica
+  neighbor_info_other_source_metric_update(neighbor, 1); // notify change to RPL
+}
+/*---------------------------------------------------------------------------*/
+/* Function added by RMonica
+ * this function works similarly to phase_update
+ * but stores the cycle time of a neighbor node and not its phase
+ */
+void
+cycle_time_update(const struct phase_list *list,
+             const rimeaddr_t *neighbor, rtimer_cycle_time_t cycle_time)
+{
+  struct phase *e;
+
+  /* If we have an entry for this neighbor already, we renew it. */
+  e = find_neighbor(list, neighbor);
+  if(e != NULL) {
+    if (e->cycle_time != cycle_time) {
+      e->cycle_time = cycle_time;
+      neighbor_info_other_source_metric_update(neighbor, 1); // notify change to RPL
+    }
+  }
+  else {
+    e = memb_alloc(list->memb);
+    if(e == NULL) {
+      PRINTF("phase alloc NULL\n");
+        /* We could not allocate memory for this phase, so we drop
+           the last item on the list and reuse it for our phase. */
+      e = list_chop(*list->list);
+    }
+    rimeaddr_copy(&e->neighbor, neighbor);
+    init_single_phase(e);
+    e->cycle_time = cycle_time; // we only know the cycle time
+    list_push(*list->list, e);
+    neighbor_info_other_source_metric_update(neighbor, 1); // notify change to RPL
+  }
+}
+/*---------------------------------------------------------------------------*/
+#if PHASE_DISCOVERY_USE_TEST_PACKET
+/* Variables added by RMonica
+ *
+ * While a phase discovery packet has been sent to the MAC layer, and we're waiting for a response
+ * we must remember: the destination address of the packet and the phase list we're trying to update
+ * so, when the response arrives, we update the recorded list at the recorded address.
+ *
+ * Since it's very unlikely that more than one discovery is in progress (because DIOs are received one by one)
+ * we allocate only the space for one discovery
+ * if multiple simultaneous discoveries are requested, we'll reject them all but one
+ */
+static rimeaddr_t phase_discovery_dest;
+static const struct phase_list * phase_discovery_list = NULL; // if NULL, no phase discovery is in progress
+/* Function added by RMonica
+ * This callback is called by the MAC layer when the transmission of the phase discovery packet
+ * ended (succeeded or failed)
+ */
+static void
+phase_discovery_callback(void * ptr, int status, int num_transmissions)
+{
+  if (status != MAC_TX_OK) {
+    struct phase * e = find_neighbor(phase_discovery_list, &phase_discovery_dest);
+    if (e && e->time >= RTIMER_ARCH_SECOND) {
+      //printf("phase discovery failed.\n");
+      e->time = UNKNOWN_TIME_PHASE_DISC_FAILED;
+    }
+  }
+
+  phase_discovery_list = NULL; // mark that a phase discovery is no longer in progress
+
+  neighbor_info_packet_sent(status, num_transmissions); // notify change to RPL
+}
+/* Function added by RMonica
+ * Sends an useless packet to the neighbor with mac address "towho"
+ * to discover its phase and save it in the phase list "list".
+ * Before calling this, you need to check if a previous phase discovery is in progress
+ * or the previous discovery could be overridden (see phase_discovery_list)
+ */
+void
+phase_send_phase_discovery(const rimeaddr_t * towho, const struct phase_list *list)
+{
+  packetbuf_clear();
+  packetbuf_set_datalen(sizeof(uint8_t));
+  packetbuf_set_attr(PACKETBUF_ATTR_PACKET_TYPE,
+                     PACKETBUF_ATTR_PACKET_TYPE_DATA);
+  // this packet will be rejected by FRAMER.parse() of the receiver
+  // but the only thing that matters is that the sender receives the ACK
+  *((uint8_t *)(packetbuf_dataptr())) = 1; // just put a byte of data in it
+
+  packetbuf_set_addr(PACKETBUF_ADDR_SENDER, &rimeaddr_node_addr);
+  packetbuf_set_addr(PACKETBUF_ADDR_RECEIVER, towho);
+
+  // store data for the callback
+  rimeaddr_copy(&phase_discovery_dest, towho);
+  phase_discovery_list = list;
+
+  NETSTACK_MAC.send(phase_discovery_callback, NULL);
+}
+#endif /* PHASE_DISCOVERY_USE_TEST_PACKET */
+/*---------------------------------------------------------------------------*/
+/* Function added by RMonica
+ * this function gets the average delay for a neighbor node, for the routing function
+ * RPL_DAG_MC_AVG_DELAY.
+ *
+ * It requires:
+ * - the list of the phases of the neighbors
+ * - the MAC address of the neighbor of which the delay must be calculated
+ * - the minimum relay time, here called guard_time
+ * - the duty cycle phase of the current node
+ */
+rtimer_cycle_time_t phase_get_average_delay(const struct phase_list *list, const rimeaddr_t *neighbor,
+                                       rtimer_clock_t guard_time, rtimer_clock_t my_phase)
+{
+  struct phase * e = find_neighbor(list,neighbor);
+  if (e && e->cycle_time != UNKNOWN_CYCLE_TIME && e->cycle_time != 0) { // cycle time exists and is known
+
+    if (e->cycle_time == CYCLE_TIME) { // same cycle time
+      if (e->time < RTIMER_ARCH_SECOND) { // known phase
+#if (CYCLE_TIME & (CYCLE_TIME >> 1))   // works in general
+        rtimer_cycle_time_t result = ((rtimer_clock_t)(e->time - my_phase)) % CYCLE_TIME;
+#else   // works only if CYCLE_TIME is a power of two
+        rtimer_cycle_time_t result = ((rtimer_clock_t)(e->time - my_phase)) & (CYCLE_TIME - 1);
+#endif
+
+        if (result < guard_time) {
+          result += CYCLE_TIME; // phase too near, we have to send during next cycle
+        }
+
+        return result;          // known phase and cycle time
+      }
+
+#if PHASE_DISCOVERY_USE_TEST_PACKET
+      if (e->time == UNKNOWN_TIME_PHASE_DISC_FAILED) { // discovery failed: use RPL to discover
+        return guard_time;
+        }
+
+      if (e->time != UNKNOWN_TIME_WAITING_FOR_PHASE) { // unknown phase and not waiting for the phase discovery
+        if (!phase_discovery_list) {                   // if no other phase discovery is in progress
+          e->time = UNKNOWN_TIME_WAITING_FOR_PHASE;
+          phase_send_phase_discovery(neighbor, list);  // discover the phase
+        }
+      }
+
+      return e->cycle_time + guard_time; // same cycle time, but unknown phase: pessimism
+#else
+      return guard_time; // use RPL to discover
+#endif
+    }
+    return (e->cycle_time >> 1) + guard_time; // different cycle times: average delay: cycle_time / 2
+  }
+  return guard_time; // cycle time is unknown or 0
 }
 /*---------------------------------------------------------------------------*/
 static void
@@ -167,9 +360,14 @@ send_packet(void *ptr)
   memb_free(&queued_packets_memb, p);
 }
 /*---------------------------------------------------------------------------*/
+/* Function modified by RMonica
+ * it now uses the specific cycle time of the receiver instead of CYCLE_TIME
+ * defined in configuration, so different nodes may use different cycle times
+ * the parameter cycle_time has been removed, because cycle times are stored in the phase list
+ */
 phase_status_t
 phase_wait(struct phase_list *list,
-           const rimeaddr_t *neighbor, rtimer_clock_t cycle_time,
+           const rimeaddr_t *neighbor,
            rtimer_clock_t guard_time,
            mac_callback_t mac_callback, void *mac_callback_ptr,
            struct rdc_buf_list *buf_list)
@@ -181,7 +379,11 @@ phase_wait(struct phase_list *list,
      time for the next expected phase and setup a ctimer to switch on
      the radio just before the phase. */
   e = find_neighbor(list, neighbor);
-  if(e != NULL) {
+  if(e != NULL && !e->cycle_time) {
+    return PHASE_SEND_NOW;  // the node is always on
+  }
+
+  if(e != NULL && (e->cycle_time != UNKNOWN_CYCLE_TIME) && (e->time < RTIMER_ARCH_SECOND)) {
     rtimer_clock_t wait, now, expected, sync;
     clock_time_t ctimewait;
     
@@ -201,30 +403,30 @@ phase_wait(struct phase_list *list,
     
     now = RTIMER_NOW();
 
-    sync = (e == NULL) ? now : e->time;
+    sync = e->time;
 
 #if PHASE_DRIFT_CORRECT
     {
       int32_t s;
-      if(e->drift > cycle_time) {
-        s = e->drift % cycle_time / (e->drift / cycle_time);  /* drift per cycle */
-        s = s * (now - sync) / cycle_time;                    /* estimated drift to now */
-        sync += s;                                            /* add it in */
+      if(e->drift > e->cycle_time) {
+        s = e->drift % e->cycle_time / (e->drift / e->cycle_time);  /* drift per cycle */
+        s = s * (now - sync) / e->cycle_time;                       /* estimated drift to now */
+        sync += s;                                                  /* add it in */
       }
     }
 #endif
 
     /* Check if cycle_time is a power of two */
-    if(!(cycle_time & (cycle_time - 1))) {
+    if(!(e->cycle_time & (e->cycle_time - 1))) {
       /* Faster if cycle_time is a power of two */
-      wait = (rtimer_clock_t)((sync - now) & (cycle_time - 1));
+      wait = (rtimer_clock_t)((sync - now) & (e->cycle_time - 1));
     } else {
       /* Works generally */
-      wait = cycle_time - (rtimer_clock_t)((now - sync) % cycle_time);
+      wait = e->cycle_time - ((rtimer_clock_t)(now - sync) % e->cycle_time);
     }
 
     if(wait < guard_time) {
-      wait += cycle_time;
+      wait += e->cycle_time;
     }
 
     ctimewait = (CLOCK_SECOND * (wait - guard_time)) / RTIMER_ARCH_SECOND;

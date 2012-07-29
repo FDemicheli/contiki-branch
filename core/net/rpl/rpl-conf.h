@@ -51,8 +51,14 @@
 #ifdef RPL_CONF_DAG_MC
 #define RPL_DAG_MC RPL_CONF_DAG_MC
 #else
+/*<<<<<<< HEAD
 #define RPL_DAG_MC RPL_DAG_MC_ETX //viene definito questo e lo ritrovo in rpl-of-etx.c
 //#define RPL_DAG_MC RPL_DAG_MC_ENERGY
+=======*/
+//#define RPL_DAG_MC RPL_DAG_MC_ETX
+  /* Routing function added by RMonica */
+#define RPL_DAG_MC RPL_DAG_MC_AVG_DELAY
+//>>>>>>> pippo
 #endif /* RPL_CONF_DAG_MC */
 
 /*

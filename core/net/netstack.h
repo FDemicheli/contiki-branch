@@ -67,6 +67,14 @@
 #endif /* NETSTACK_CONF_RDC */
 #endif /* NETSTACK_RDC */
 
+/* Modified by RMonica
+ * patches: - different nodes may have different cycle times
+ *          - add RPL function RPL_DAG_MC_AVG_DELAY
+ *
+ * NETSTACK_RDC_CHANNEL_CHECK_RATE is left here for compatibility
+ * but the node duty cycle rate is defined by CONTIKIMAC_CONF_CYCLE_RATE
+ * also added CONTIKIMAC_CONF_MIN_CYCLE_RATE, the minimum check rate of the whole network
+ */
 #ifndef NETSTACK_RDC_CHANNEL_CHECK_RATE
 #ifdef NETSTACK_CONF_RDC_CHANNEL_CHECK_RATE
 #define NETSTACK_RDC_CHANNEL_CHECK_RATE NETSTACK_CONF_RDC_CHANNEL_CHECK_RATE
@@ -74,6 +82,50 @@
 #define NETSTACK_RDC_CHANNEL_CHECK_RATE 8
 #endif /* NETSTACK_CONF_RDC_CHANNEL_CHECK_RATE */
 #endif /* NETSTACK_RDC_CHANNEL_CHECK_RATE */
+
+/* CYCLE_TIME for channel cca checks, in rtimer ticks. */
+#ifdef CONTIKIMAC_CONF_CYCLE_RATE
+#define CYCLE_TIME (RTIMER_ARCH_SECOND / CONTIKIMAC_CONF_CYCLE_RATE)
+#define CYCLE_RATE (CONTIKIMAC_CONF_CYCLE_RATE)
+#else
+#define CYCLE_TIME (RTIMER_ARCH_SECOND / NETSTACK_RDC_CHANNEL_CHECK_RATE)
+#define CYCLE_RATE (NETSTACK_RDC_CHANNEL_CHECK_RATE)
+#endif
+
+// if the cycle rate of a node is higher than this, phase optimization to that node will be disabled
+#define APPROX_RADIO_ALWAYS_ON_CYCLE_RATE 64
+#define APPROX_RADIO_ALWAYS_ON_CYCLE_TIME (RTIMER_ARCH_SECOND / APPROX_RADIO_ALWAYS_ON_CYCLE_RATE)
+
+// max cycle time (and min cycle rate) for the whole network
+// if nodes have different duty cycle times
+#ifdef CONTIKIMAC_CONF_MIN_CYCLE_RATE
+#define MAX_CYCLE_TIME (RTIMER_ARCH_SECOND / CONTIKIMAC_CONF_MIN_CYCLE_RATE)
+#define MIN_CYCLE_RATE (CONTIKIMAC_CONF_MIN_CYCLE_RATE)
+#else
+#define MAX_CYCLE_TIME (CYCLE_TIME)
+#define MIN_CYCLE_RATE (CYCLE_RATE)
+#endif
+
+/* Modified by RMonica
+ * patches: - different nodes may have different cycle times
+ *          - add RPL function RPL_DAG_MC_AVG_DELAY
+ *
+ * - defined the type rtimer_cycle_time_t to store cycle times in memory
+ * - added functions to access ContikiMAC from RPL (see implementation in
+ *   core/net/mac/contikimac.c for explanation)
+ *
+ * TODO: move all this to a dedicated header file
+ */
+#if MAX_CYCLE_TIME <= 65535  // save memory
+typedef uint16_t rtimer_cycle_time_t;
+#else
+typedef uint32_t rtimer_cycle_time_t;
+#endif
+
+#include "net/rime/rimeaddr.h"
+void contikimac_cycle_time_update(const rimeaddr_t *addr,rtimer_cycle_time_t newtime);
+rtimer_cycle_time_t contikimac_get_cycle_time_for_routing();
+rtimer_cycle_time_t contikimac_get_average_delay_for_routing(const rimeaddr_t * toNode);
 
 #if (NETSTACK_RDC_CHANNEL_CHECK_RATE & (NETSTACK_RDC_CHANNEL_CHECK_RATE - 1)) != 0
 #error NETSTACK_RDC_CONF_CHANNEL_CHECK_RATE must be a power of two (i.e., 1, 2, 4, 8, 16, 32, 64, ...).

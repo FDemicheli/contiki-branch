@@ -46,6 +46,16 @@
  */
 
 
+/* Modified by RMonica
+ *
+ * patches: - different nodes may have different cycle times
+ *            (only for the addition of one line to update_metric_container,
+ *            to broadcast the cycle time)
+ *          - add RPL function RPL_DAG_MC_AVG_DELAY
+ *            (search for RPL_DAG_MC_AVG_DELAY to see modifications)
+ */
+
+
 #include "net/rpl/rpl-private.h"
 #include "net/neighbor-info.h"
 
@@ -90,11 +100,15 @@ rpl_of_t rpl_of_etx = {
  */
 #define PARENT_SWITCH_THRESHOLD_DIV	2
 
+#define AVG_DELAY_MAX_DELAY 65535
+#define AVG_DELAY_SWITCH_THRESHOLD (RTIMER_ARCH_SECOND / 3000)
+
 typedef uint16_t rpl_path_metric_t;
 
 static rpl_path_metric_t
 calculate_path_metric(rpl_parent_t *p)
 {
+#if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY)
   if(p == NULL || (p->mc.obj.etx == 0 && p->rank > ROOT_RANK(p->dag->instance))) {
     return MAX_PATH_COST * RPL_DAG_MC_ETX_DIVISOR;
   } else {
@@ -107,6 +121,25 @@ calculate_path_metric(rpl_parent_t *p)
     PRINTF("p->mc.obj.etx + (uint16_t) etx = %d\n", p->mc.obj.etx + (uint16_t) etx);
     return p->mc.obj.etx + (uint16_t) etx;
   }
+#elif RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY
+  if(p == NULL || (p->mc.obj.avg_delay_to_sink == 0 && p->rank > ROOT_RANK(p->dag->instance))) {
+    return AVG_DELAY_MAX_DELAY;
+  } else {
+    rimeaddr_t macaddr;
+    uip_ds6_get_addr_iid(&(p->addr),(uip_lladdr_t *)&macaddr);
+    long delay = contikimac_get_average_delay_for_routing(&macaddr) >> 4;
+    //printf("calculate_path_metric: %lu to %u",delay,(int)(macaddr.u8[7]));
+
+    delay += p->mc.obj.avg_delay_to_sink;
+    //printf(" total: %lu\n",delay);
+    if (delay > AVG_DELAY_MAX_DELAY) {
+      delay = AVG_DELAY_MAX_DELAY;
+    }
+    return (rpl_path_metric_t)delay;
+  }
+#else
+#error "calculate_path_metric: Not supported."
+#endif
 }
 
 static void
@@ -137,9 +170,19 @@ calculate_rank(rpl_parent_t *p, rpl_rank_t base_rank)
     //PRINTF("rank_increase (1280) = %d\n",rank_increase);
   } else {
     /* multiply first, then scale down to avoid truncation effects */
-    rank_increase = NEIGHBOR_INFO_FIX2ETX(p->link_metric * p->dag->instance->min_hoprankinc); //valore intero
+//<<<<<<< HEAD
+  //  rank_increase = NEIGHBOR_INFO_FIX2ETX(p->link_metric * p->dag->instance->min_hoprankinc); //valore intero
     //rank_increase = p->link_metric * 256 = ETX * 256
     //PRINTF("rank_increase = %d\n",rank_increase);
+//=======
+#if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY)
+    rank_increase = NEIGHBOR_INFO_FIX2ETX(p->link_metric * p->dag->instance->min_hoprankinc);
+#elif RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY
+    rank_increase = NEIGHBOR_INFO_FIX2ETX(p->dag->instance->min_hoprankinc);
+#else
+#error "calculate_rank: not supported."
+#endif
+//>>>>>>> pippo
     if(base_rank == 0) {
       base_rank = p->rank; ///base_rank è in sostanza il rank del parent
       //PRINTF("base rank = %d\n", base_rank);
@@ -183,12 +226,22 @@ best_parent(rpl_parent_t *p1, rpl_parent_t *p2) //Compares two parents and retur
 
   dag = p1->dag; /* Both parents must be in the same DAG. */
 
-  min_diff = RPL_DAG_MC_ETX_DIVISOR /
-             PARENT_SWITCH_THRESHOLD_DIV; //x discriminare i due rank
+#if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY)
+  min_diff = RPL_DAG_MC_ETX_DIVISOR / PARENT_SWITCH_THRESHOLD_DIV;
+//<<<<<<< HEAD
+  //           PARENT_SWITCH_THRESHOLD_DIV; //x discriminare i due rank
 	     
   //PRINTF("p1 = %d\n",p1);
   //PRINTF("p2 = %d\n",p2);
-  PRINTF("BEST PARENT: calculate path metric. Calcolo p1_metric\n");
+//  PRINTF("BEST PARENT: calculate path metric. Calcolo p1_metric\n");
+//=======
+#elif (RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY)
+  min_diff = AVG_DELAY_SWITCH_THRESHOLD;
+#else
+#error "best_parent: RPL_DAG_MC not supported."
+#endif
+
+//>>>>>>> pippo
   p1_metric = calculate_path_metric(p1);
   PRINTF("p1_metric = %u\n",p1_metric);
   
@@ -224,7 +277,13 @@ update_metric_container(rpl_instance_t *instance)
 
   instance->mc.flags = RPL_DAG_MC_FLAG_P;
   instance->mc.aggr = RPL_DAG_MC_AGGR_ADDITIVE;
+/*<<<<<<< HEAD
   instance->mc.prec = 0; //indica che l'oggetto metrica ha la precedenza
+=======*/
+  instance->mc.prec = 0;
+  /* Following line added by RMonica */
+  instance->mc.node_cycle_time = contikimac_get_cycle_time_for_routing();
+//>>>>>>> pippo
 
   dag = instance->current_dag;
 
@@ -268,8 +327,19 @@ update_metric_container(rpl_instance_t *instance)
   }
 
   instance->mc.obj.energy.flags = type << RPL_DAG_MC_ENERGY_TYPE;
+<<<<<<< HEAD
   instance->mc.obj.energy.energy_est = path_metric;//viene stimata l'energia rimanente??
   PRINTF("mc.obj.energy.energy_est = %d\n", instance->mc.obj.energy.energy_est);*/
+//=======
+  instance->mc.obj.energy.energy_est = path_metric;
+
+#elif RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY
+
+  instance->mc.type = RPL_DAG_MC_AVG_DELAY;
+  instance->mc.length = sizeof(instance->mc.obj.avg_delay_to_sink);
+  instance->mc.obj.avg_delay_to_sink = path_metric;
+
+>>>>>>> pippo
 #else
 
 #error "Unsupported RPL_DAG_MC configured. See rpl.h."

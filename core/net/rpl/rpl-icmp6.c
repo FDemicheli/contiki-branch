@@ -42,6 +42,17 @@
  *               Mathieu Pouillot <m.pouillot@watteco.com>
  */
 
+/* Modified by RMonica
+ * patches: - different nodes may have different cycle times
+ *          - add RPL function RPL_DAG_MC_AVG_DELAY
+ *
+ * DIO metric size increased by 2, caused by field "node_cycle_time" (see rpl_metric_container in rpl.h)
+ * the field is initialized by the sender using the objective function (see rpl-of-etx.c)
+ * and stored by the receiver using contikimac_cycle_time_update (see net/contikimac.c)
+ * the transmission of the metric for RPL_DAG_MC_AVG_DELAY doesn't require additional space
+ * because it's inside an union with the ETX metric (see rpl_metric_container in rpl.h)
+ */
+
 #include "net/tcpip.h"
 #include "net/uip.h"
 #include "net/uip-ds6.h"
@@ -298,7 +309,7 @@ dio_input(void) /** cosa succede alla ricezione di un DIO  */
 
     switch(subopt_type) {
     case RPL_OPTION_DAG_METRIC_CONTAINER:
-      if(len < 6) {
+      if(len < 8) {
         PRINTF("RPL: Invalid DAG MC, len = %d\n", len);
 	RPL_STAT(rpl_stats.malformed_msgs++);
         return;
@@ -308,9 +319,11 @@ dio_input(void) /** cosa succede alla ricezione di un DIO  */
       dio.mc.flags |= buffer[i + 4] >> 7;
       dio.mc.aggr = (buffer[i + 4] >> 4) & 0x3;
       dio.mc.prec = buffer[i + 4] & 0xf;
-      dio.mc.length = buffer[i + 5];
+      dio.mc.node_cycle_time = get16(buffer, i + 5);
+      dio.mc.length = buffer[i + 7];
 
       if(dio.mc.type == RPL_DAG_MC_ETX) {
+/*<<<<<<< HEAD
         dio.mc.obj.etx = get16(buffer, i + 6);
 	PRINTF("dio_input: dio.mc.obj.etx = %u\n", dio.mc.obj.etx);
         //PRINTF("RPL: DAG MC: type %u, flags %u, aggr %u, prec %u, length %u, ETX %u\n",
@@ -326,9 +339,36 @@ dio_input(void) /** cosa succede alla ricezione di un DIO  */
         dio.mc.obj.energy.energy_est = buffer[i + 7];
 	//PRINTF("energy_est = %d\n", dio.mc.obj.energy.energy_est);
       } else {
+=======*/
+        dio.mc.obj.etx = get16(buffer, i + 8);
+
+        PRINTF("RPL: DAG MC: type %u, flags %u, aggr %u, prec %u, length %u, ETX %u\n",
+	       (unsigned)dio.mc.type,  
+	       (unsigned)dio.mc.flags, 
+	       (unsigned)dio.mc.aggr, 
+	       (unsigned)dio.mc.prec, 
+	       (unsigned)dio.mc.length, 
+	       (unsigned)dio.mc.obj.etx);
+      } else if(dio.mc.type == RPL_DAG_MC_ENERGY) {
+        dio.mc.obj.energy.flags = buffer[i + 8];
+        dio.mc.obj.energy.energy_est = buffer[i + 9];
+      } else if(dio.mc.type == RPL_DAG_MC_AVG_DELAY) {
+        dio.mc.obj.avg_delay_to_sink = get16(buffer, i + 8);
+      }else {
+//>>>>>>> pippo
        PRINTF("RPL: Unhandled DAG MC type: %u\n", (unsigned)dio.mc.type);
        return;
       }
+
+      /* Added by RMonica
+       * Send cycle time updates to ContikiMAC
+       */
+      /* scope only */ {
+        rimeaddr_t macaddr;
+        uip_ds6_get_addr_iid(&from,(uip_lladdr_t *)&macaddr);
+        contikimac_cycle_time_update(&macaddr,dio.mc.node_cycle_time);
+      }
+
       break;
     case RPL_OPTION_ROUTE_INFO:
       if(len < 9) {
@@ -461,11 +501,13 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr) /** cosa succede pri
   if(instance->mc.type != RPL_DAG_MC_NONE) {
     instance->of->update_metric_container(instance); /** prima dell'invio del DIO, il nodo aggiorna la metrica */
     buffer[pos++] = RPL_OPTION_DAG_METRIC_CONTAINER;
-    buffer[pos++] = 6;
+    buffer[pos++] = 8; // size of the metric container
     buffer[pos++] = instance->mc.type;
     buffer[pos++] = instance->mc.flags >> 1;
     buffer[pos] = (instance->mc.flags & 1) << 7;
     buffer[pos++] |= (instance->mc.aggr << 4) | instance->mc.prec;
+    set16(buffer, pos, instance->mc.node_cycle_time);
+    pos += 2;
     if(instance->mc.type == RPL_DAG_MC_ETX) {
       buffer[pos++] = 2;
       set16(buffer, pos, instance->mc.obj.etx);
@@ -474,6 +516,10 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr) /** cosa succede pri
       buffer[pos++] = 2;
       buffer[pos++] = instance->mc.obj.energy.flags;
       buffer[pos++] = instance->mc.obj.energy.energy_est;
+    } else if(instance->mc.type == RPL_DAG_MC_AVG_DELAY) {
+      buffer[pos++] = 2;
+      set16(buffer, pos, instance->mc.obj.avg_delay_to_sink);
+      pos += 2;
     } else {
       PRINTF("RPL: Unable to send DIO because of unhandled DAG MC type %u\n",
 	(unsigned)instance->mc.type);
