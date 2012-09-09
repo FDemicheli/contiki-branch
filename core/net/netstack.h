@@ -42,6 +42,7 @@
 #define NETSTACK_H
 
 #include "contiki-conf.h"
+#include "lib/random.h"
 
 #ifndef NETSTACK_NETWORK
 #ifdef NETSTACK_CONF_NETWORK
@@ -83,14 +84,24 @@
 #endif /* NETSTACK_CONF_RDC_CHANNEL_CHECK_RATE */
 #endif /* NETSTACK_RDC_CHANNEL_CHECK_RATE */
 
-/* CYCLE_TIME for channel cca checks, in rtimer ticks. */
-#ifdef CONTIKIMAC_CONF_CYCLE_RATE
-#define CYCLE_TIME (RTIMER_ARCH_SECOND / CONTIKIMAC_CONF_CYCLE_RATE)
+/** CYCLE_TIME for channel cca checks, in rtimer ticks. added by Monica*/
+#ifdef CONTIKIMAC_CONF_CYCLE_RATE  //defined into Makefile
+#define CYCLE_TIME (RTIMER_ARCH_SECOND / CONTIKIMAC_CONF_CYCLE_RATE)///node cycle time
 #define CYCLE_RATE (CONTIKIMAC_CONF_CYCLE_RATE)
 #else
+//queste due righe sono relative alla parte di default
 #define CYCLE_TIME (RTIMER_ARCH_SECOND / NETSTACK_RDC_CHANNEL_CHECK_RATE)
 #define CYCLE_RATE (NETSTACK_RDC_CHANNEL_CHECK_RATE)
-#endif
+#endif 
+
+///queste cinque righe le ho messe io, se no dovrei definire CONTIKIMAC_CONF_CYCLE_RATE nel Makefile
+///In questo modo posso fare in tutte e due le maniere
+//#ifndef CONTIKIMAC_CONF_CYCLE_RATE
+//#define CONTIKIMAC_CONF_CYCLE_RATE           ///DEFINISCE LA FREQUENZA DI DUTY CYCLE
+//#define CONTIKIMAC_CONF_CYCLE_RATE          (random_rand()%10)
+//#define CYCLE_TIME (RTIMER_ARCH_SECOND / CONTIKIMAC_CONF_CYCLE_RATE)
+//#define CYCLE_RATE (CONTIKIMAC_CONF_CYCLE_RATE)
+//#endif
 
 // if the cycle rate of a node is higher than this, phase optimization to that node will be disabled
 #define APPROX_RADIO_ALWAYS_ON_CYCLE_RATE 64

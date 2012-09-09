@@ -160,7 +160,8 @@ rpl_link_neighbor_callback(const rimeaddr_t *addr, int known, int etx) //get inf
         /** Trigger DAG rank recalculation. */
         parent->updated = 1;
         parent->link_metric = etx;
-	PRINTF("link_metric in rpl.c = %u\n",parent->link_metric);
+	
+	//PRINTF("link_metric in rpl.c = %u\n",parent->link_metric);
 
         if(instance->of->parent_state_callback != NULL) {
           instance->of->parent_state_callback(parent, known, etx);

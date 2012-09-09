@@ -65,7 +65,8 @@ typedef uint16_t rpl_ocp_t;//vuol dire che qls variabile di tipo rpl_rank_t è u
 #define RPL_DAG_MC_ETX                  7 /* Expected Transmission Count */
 #define RPL_DAG_MC_LC                   8 /* Link Color */
 
-#define RPL_DAG_MC_AVG_DELAY            9 /* Average delay towards sink */
+#define RPL_DAG_MC_AVG_DELAY            9 /* Average delay towards sink. Added by RMonica */
+#define RPL_DAG_MC_MLT			10 /** Maximum lifetime. Added by FDemicheli */
 
 /* DAG Metric Container flags. */
 #define RPL_DAG_MC_FLAG_P               0x8
@@ -102,12 +103,14 @@ struct rpl_metric_container {
   uint8_t prec;//indica la precedenza dell'oggetto metrica di routing risp agli altri oggetti. 0 è la precedenza piu alta
   uint8_t length;//def la lunghezza dell'oggetto metrica di routing
   /* field added by RMonica */
-  uint16_t node_cycle_time;
+  uint16_t node_cycle_time; //also for MLT. Contain the node cycle time
   union metric_object {
-    struct rpl_metric_object_energy energy;
+    struct rpl_metric_object_energy energy;  
     uint16_t etx;
     /* field added by RMonica */
     uint16_t avg_delay_to_sink;
+    /* field added by FDemicheli */
+    uint16_t mlt;
   } obj;
 };
 typedef struct rpl_metric_container rpl_metric_container_t;
@@ -121,7 +124,7 @@ struct rpl_parent {
   rpl_metric_container_t mc;
   uip_ipaddr_t addr;
   rpl_rank_t rank;
-  uint8_t link_metric;//usata x calcolare la metrica di link
+  uint8_t link_metric; ///usata x calcolare la metrica di link
   uint8_t dtsn; //usato x il mantenimento delle rotte dal nodo radice
   uint8_t updated;
 };
@@ -137,7 +140,7 @@ struct rpl_prefix {
 typedef struct rpl_prefix rpl_prefix_t;
 /*---------------------------------------------------------------------------*/
 /* Directed Acyclic Graph */
-//Struttura che consente di creare un DAG e da cui si crea un'istanza RPL con rpl_istance
+//Struttura che consente di creare un DAG e da cui si crea un'istanza RPL con rpl_instance
 struct rpl_dag {
   uip_ipaddr_t dag_id;
   rpl_rank_t min_rank; /* should be reset per DAG iteration! */

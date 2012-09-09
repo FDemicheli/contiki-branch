@@ -99,7 +99,7 @@ void uip_log(char *msg);
 #define UIP_LOG(m) uip_log(m)
 #else
 #define UIP_LOG(m)
-#endif /* UIP_LOGGING == 1 */
+#endif /* UIP_LOGGINmetricpG == 1 */
 
 #ifdef SICSLOWPAN_CONF_MAX_MAC_TRANSMISSIONS
 #define SICSLOWPAN_MAX_MAC_TRANSMISSIONS SICSLOWPAN_CONF_MAX_MAC_TRANSMISSIONS
@@ -1308,7 +1308,7 @@ static void
 packet_sent(void *ptr, int status, int transmissions)
 {
 #if SICSLOWPAN_CONF_NEIGHBOR_INFO
-  neighbor_info_packet_sent(status, transmissions);
+  neighbor_info_packet_sent(status, transmissions);  
 #endif /* SICSLOWPAN_CONF_NEIGHBOR_INFO */
   if(callback != NULL) {
     callback->output_callback(status);

@@ -7,6 +7,10 @@ WITH_UIP6=1
 UIP_CONF_IPV6=1
 CFLAGS+= -DUIP_CONF_IPV6_RPL
 
+## patch different cycle times
+CFLAGS += -DCONTIKIMAC_CONF_CYCLE_RATE=16 -DCONTIKIMAC_CONF_MIN_CYCLE_RATE=5
+# #
+
 #linker optimizations
 SMALL=1
 

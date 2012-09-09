@@ -80,7 +80,12 @@ powertrace_print(char *str)
   uint32_t all_cpu, all_lpm, all_transmit, all_listen;
   uint32_t idle_transmit, idle_listen;
   uint32_t all_idle_transmit, all_idle_listen;
-
+  
+  uint32_t corrente_consumata_cpu_sec, corrente_consumata_lpm_sec, corrente_consumata_transmit_sec, corrente_consumata_listen_sec;
+  static uint32_t energia_consumata_elab, energia_consumata_tot, energia_tot_batteria, energia_residua, resto; 
+  //static uint16_t resto;
+  energia_tot_batteria = 21600000; //in mJ, valore stimato nell'articolo di Piotrowsky (nella cartella energy)
+  //energia_soglia = 6750000; al di sotto di questo valore il nodo muore
   static uint32_t seqno;
 
   uint32_t time, all_time, radio, all_radio;
@@ -88,35 +93,80 @@ powertrace_print(char *str)
   struct powertrace_sniff_stats *s;
 
   energest_flush();
-  ///energest_type_time = ritorna il valore di corrente dentro la struct energest_t. E' un unsigned long
-  all_cpu = energest_type_time(ENERGEST_TYPE_CPU);
-  all_lpm = energest_type_time(ENERGEST_TYPE_LPM);
+  ///energest_type_time = ritorna un valore intero. E' un unsigned long ed è espresso in rtimer ticks.
+  ///Remember: to obtain seconds, I have to divide by RTIMER_ARCH_SECOND
+  ///Questi sono i valori di tempo tot, che si sommano ogni volta
+  all_cpu = energest_type_time(ENERGEST_TYPE_CPU);///is high power CPU time
+  all_lpm = energest_type_time(ENERGEST_TYPE_LPM);///is low power CPU time. It uses 3% of full power and is activated when no processes 
+                                                 ///have run and there are no events pending
   all_transmit = energest_type_time(ENERGEST_TYPE_TRANSMIT);
   all_listen = energest_type_time(ENERGEST_TYPE_LISTEN);
-  all_idle_transmit = compower_idle_activity.transmit;
+  all_idle_transmit = compower_idle_activity.transmit;///always 0
   all_idle_listen = compower_idle_activity.listen;
+  
+  ///Compute Tm,n = time during which component m has been in state n --> see Powertrace paper page 5
+  ///Current values obtained from Tmote-sky datasheet. Tension V = 3 V.
+  ///Questi sono i valori riferiti alla singola elaborazione, quindi di Tm,n
+  cpu = all_cpu - last_cpu;///the component leave high power CPU state. MCU ON, Radio OFF. Current = 1.8 mA
+  lpm = all_lpm - last_lpm;///the component leave low power CPU state. MCU IDLE, Radio OFF. Current = 0.545 mA
+  transmit = all_transmit - last_transmit;///MCU ON, radio TX. Current = 19.5mA --> 20 mA
+  listen = all_listen - last_listen;///MCU ON, radio RX. Current = 21.8 mA
+  idle_transmit = compower_idle_activity.transmit - last_idle_transmit;///always 0
+  idle_listen = compower_idle_activity.listen - last_idle_listen;///in seconds always 0 s, so this time is neglectable
+  
+  //printf("idle_listen in s = %lu s\n", idle_listen/RTIMER_ARCH_SECOND);
+  /**The energy cost is P= V * I and E = P * Tm.n
+     --> E = V * I * Tm,n = (3 *( 1.8 * cpu + 0.545 * lpm + 20 * transmit + 21.8 * listen))/RTIMER_ARCH_SECOND
+  */
 
-  cpu = all_cpu - last_cpu;
-  lpm = all_lpm - last_lpm;
-  transmit = all_transmit - last_transmit;
-  listen = all_listen - last_listen;
-  idle_transmit = compower_idle_activity.transmit - last_idle_transmit;
-  idle_listen = compower_idle_activity.listen - last_idle_listen;
-
+  //corrente_consumata_cpu_sec = (cpu/RTIMER_ARCH_SECOND) * 1.8; //--> s * mA = T * I
+  corrente_consumata_cpu_sec = (cpu*1.8)/RTIMER_ARCH_SECOND;
+  //corrente_consumata_lpm_sec = (lpm/RTIMER_ARCH_SECOND) * 0.545;
+  corrente_consumata_lpm_sec = (lpm*0.545)/RTIMER_ARCH_SECOND;
+  //corrente_consumata_transmit_sec = (transmit/RTIMER_ARCH_SECOND) * 20;
+  corrente_consumata_transmit_sec = (transmit*20)/RTIMER_ARCH_SECOND;
+  //corrente_consumata_listen_sec = (listen/RTIMER_ARCH_SECOND) * 21.8;
+  corrente_consumata_listen_sec = (listen*21.8)/RTIMER_ARCH_SECOND;
+  
+  energia_consumata_elab = (3 * (corrente_consumata_cpu_sec + corrente_consumata_lpm_sec + corrente_consumata_transmit_sec 
+                               + corrente_consumata_listen_sec));// --> mW * s = mJ
+  
+  energia_consumata_tot += energia_consumata_elab;
+  energia_residua = energia_tot_batteria - energia_consumata_tot;
+  
+  printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+  //printf("energia_consumata_elab = %lu mJ\n", energia_consumata_elab);
+  printf("energia_consumata_tot = %lu mJ\n", energia_consumata_tot);
+  printf("energia_residua = %lu mJ\n",energia_residua);
+  //printf("energia_residua = %d mJ\n",(uint16_t)energia_residua);
+  resto =  ((100*energia_residua)% energia_tot_batteria)/1000; ///è di fatto mlt. Lo uso come parametro additivo x la mia metrica
+    //resto = energia_residua % energia_tot_batteria;
+    printf("mlt = %lu\n",resto);
+    printf("(uint16_t)mlt = %d\n",(uint16_t)resto);
+  ///The same values as above
   last_cpu = energest_type_time(ENERGEST_TYPE_CPU);
   last_lpm = energest_type_time(ENERGEST_TYPE_LPM);
   last_transmit = energest_type_time(ENERGEST_TYPE_TRANSMIT);
   last_listen = energest_type_time(ENERGEST_TYPE_LISTEN);
   last_idle_listen = compower_idle_activity.listen;
-  last_idle_transmit = compower_idle_activity.transmit;
-
+  last_idle_transmit = compower_idle_activity.transmit;///always 0
+  
+  //printf("last_idle_listen = %lu\n", last_idle_listen);
+  
   radio = transmit + listen;
   time = cpu + lpm;
   all_time = all_cpu + all_lpm;
   all_radio = energest_type_time(ENERGEST_TYPE_LISTEN) +
     energest_type_time(ENERGEST_TYPE_TRANSMIT);
+    
+   //printf("all_cpu = %lu\n", all_cpu);
+   //printf("cpu = all_cpu - last_cpu = %lu\n", cpu);
+   //printf("cpu = %lu\n", cpu);
+   //printf("cpu in secondi = %lu\n", cpu/RTIMER_ARCH_SECOND);
+   //printf("last_cpu = %lu\n", last_cpu);
+   printf("**************************************************************************************************************************\n");
 
-  printf("%s %lu P %d.%d %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu (radio %d.%02d%% / %d.%02d%% tx %d.%02d%% / %d.%02d%% listen %d.%02d%% / %d.%02d%%)\n",
+/*  printf("%s %lu P %d.%d %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu (radio %d.%02d%% / %d.%02d%% tx %d.%02d%% / %d.%02d%% listen %d.%02d%% / %d.%02d%%)\n",
          str,
          clock_time(), rimeaddr_node_addr.u8[0], rimeaddr_node_addr.u8[1], seqno,
          all_cpu, all_lpm, all_transmit, all_listen, all_idle_transmit, all_idle_listen,
@@ -132,7 +182,7 @@ powertrace_print(char *str)
          (int)((100L * all_listen) / all_time),
          (int)((10000L * all_listen) / all_time - (100L * all_listen / all_time) * 100),
          (int)((100L * listen) / time),
-         (int)((10000L * listen) / time - (100L * listen / time) * 100));
+         (int)((10000L * listen) / time - (100L * listen / time) * 100));*/
  /*Da usare x il file Matlab
   printf("%s %lu P %d.%d %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu\n",
          str,
@@ -142,8 +192,8 @@ powertrace_print(char *str)
 
   for(s = list_head(stats_list); s != NULL; s = list_item_next(s)) {
 
-#if ! UIP_CONF_IPV6
-    printf("%s %lu SP %d.%d %lu %u %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu (channel %d radio %d.%02d%% / %d.%02d%%)\n",
+//#if ! UIP_CONF_IPV6
+    /*printf("%s %lu SP %d.%d %lu %u %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu (channel %d radio %d.%02d%% / %d.%02d%%)\n",
            str, clock_time(), rimeaddr_node_addr.u8[0], rimeaddr_node_addr.u8[1], seqno,
            s->channel,
            s->num_input, s->input_txtime, s->input_rxtime,
@@ -164,8 +214,8 @@ powertrace_print(char *str)
                           s->output_rxtime + s->output_txtime -
                           (s->last_input_rxtime + s->last_input_txtime +
                            s->last_output_rxtime + s->last_output_txtime))) /
-                 radio));
-#else
+                 radio));*/
+/*#else
     printf("%s %lu SP %d.%d %lu %u %u %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu (proto %u(%u) radio %d.%02d%% / %d.%02d%%)\n",
            str, clock_time(), rimeaddr_node_addr.u8[0], rimeaddr_node_addr.u8[1], seqno,
            s->proto, s->channel,
@@ -188,7 +238,7 @@ powertrace_print(char *str)
                           (s->last_input_rxtime + s->last_input_txtime +
                            s->last_output_rxtime + s->last_output_txtime))) /
                  radio));
-#endif
+#endif*/
     s->last_input_txtime = s->input_txtime;
     s->last_input_rxtime = s->input_rxtime;
     s->last_output_txtime = s->output_txtime;

@@ -32,9 +32,9 @@
  *	Public configuration and API declarations for ContikiRPL.
  * \author
  *	Joakim Eriksson <joakime@sics.se> & Nicolas Tsiftes <nvt@sics.se>
- *
- */
-
+ *      
+ */            
+    //Some additions by Monica & Demicheli
 #ifndef RPL_CONF_H
 #define RPL_CONF_H
 
@@ -51,14 +51,12 @@
 #ifdef RPL_CONF_DAG_MC
 #define RPL_DAG_MC RPL_CONF_DAG_MC
 #else
-/*<<<<<<< HEAD
-#define RPL_DAG_MC RPL_DAG_MC_ETX //viene definito questo e lo ritrovo in rpl-of-etx.c
+//#define RPL_DAG_MC RPL_DAG_MC_ETX //viene definito questo e lo ritrovo in rpl-of-etx.c
 //#define RPL_DAG_MC RPL_DAG_MC_ENERGY
-=======*/
-//#define RPL_DAG_MC RPL_DAG_MC_ETX
   /* Routing function added by RMonica */
-#define RPL_DAG_MC RPL_DAG_MC_AVG_DELAY
-//>>>>>>> pippo
+//#define RPL_DAG_MC RPL_DAG_MC_AVG_DELAY
+  /** Routing function added by FDemicheli */
+#define RPL_DAG_MC RPL_DAG_MC_MLT //.See rpl.h line 69
 #endif /* RPL_CONF_DAG_MC */
 
 /*

@@ -110,9 +110,13 @@
 
 /* Default route lifetime unit. */
 #define RPL_DEFAULT_LIFETIME_UNIT       0xffff  //18 hours
+//#define RPL_DEFAULT_LIFETIME_UNIT       0x0fff //1 hour
+//#define RPL_DEFAULT_LIFETIME_UNIT       0x00ff //255 seconds
 
 /* Default route lifetime as a multiple of the lifetime unit. */
 #define RPL_DEFAULT_LIFETIME            0xff
+//#define RPL_DEFAULT_LIFETIME          14  //14*255 = 1 hour
+
 //il backslash in una macro vuol dire che nella riga successiva viene indicato cosa fa la funzione
 #define RPL_LIFETIME(instance, lifetime) \
           ((unsigned long)(instance)->lifetime_unit * (lifetime))
@@ -188,6 +192,7 @@
 #define RPL_MOP_DEFAULT                 RPL_CONF_MOP
 #else
 #define RPL_MOP_DEFAULT                 RPL_MOP_STORING_NO_MULTICAST
+
 #endif
 
 /*

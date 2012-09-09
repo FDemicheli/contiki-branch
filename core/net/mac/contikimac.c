@@ -98,7 +98,7 @@ struct hdr {
 };
 #endif /* WITH_CONTIKIMAC_HEADER */
 
-
+///NOTA: FINO A ==== E' LA PARTE VECCHIA
 /*RTIMER_ARCH_SECOND is the count rate of the timer used to generate timer compare interrupts*/
 /* CYCLE_TIME for channel cca checks, in rtimer ticks. */
 //#ifdef CONTIKIMAC_CONF_CYCLE_TIME
@@ -106,21 +106,23 @@ struct hdr {
 //#else
 //#define CYCLE_TIME (RTIMER_ARCH_SECOND / NETSTACK_RDC_CHANNEL_CHECK_RATE) ///wake-up interval = 125ms = 8Hz
 //#endif
-///CYCLE_TIME = 4096 = 32768/8: è il periodo di DUTY CYCLE
+//CYCLE_TIME = 4096 = 32768/8: è il periodo di DUTY CYCLE -->nel caso di default
 ///macro RTIMER_ARCH_SECOND represent the number of ticks per second
 ///macro NETSTACK_RDC_CHANNEL_CHECK_RATE is set by 8, dove 8 sono Hz. core --> net --> netstack.h. E' la frequenza degli istanti di ascolto
 
 /** CHANNEL_CHECK_RATE is enforced to be a power of two.*/
-/* If RTIMER_ARCH_SECOND is not also a power of two, there will be an inexact
-=======
-/* If RTIMER_ARCH_SECOND is not a multiple of CYCLE_TIME, there will be an inexact
+/* If RTIMER_ARCH_SECOND is not also a power of two, there will be an inexact*/
+//=======
+///QUI INIZIA LA PARTE DI MONICA
+/*If RTIMER_ARCH_SECOND is not a multiple of CYCLE_TIME, there will be an inexact
  * number of channel checks per second due to the truncation of CYCLE_TIME.
  * This will degrade the effectiveness of phase optimization with neighbors that
  * do not have the same truncation error.
  * Define SYNC_CYCLE_STARTS to ensure an integral number of checks per second.
  */
-#if (RTIMER_ARCH_SECOND % CYCLE_TIME) != 0
-#define SYNC_CYCLE_STARTS                    1
+
+#if (RTIMER_ARCH_SECOND % CYCLE_TIME) != 0 /**la condizione viene rispettata e SYNC_CYCLE_STARTS = 1 se CYCLE_TIME non è potenza di 2*/
+#define SYNC_CYCLE_STARTS                    1 
 #endif
 
 /* Modified by RMonica
@@ -426,7 +428,6 @@ does not control the transmission*/
 #if !(SYNC_CYCLE_STARTS && PRECISE_SYNC_CYCLE_STARTS)
 //>>>>>>> pippo
   cycle_start = RTIMER_NOW();
-  PRINTF("cycle_start else = %u\n",cycle_start);
 #endif
 
   while(1) {
@@ -448,16 +449,12 @@ does not control the transmission*/
     else {
 #if (RTIMER_ARCH_SECOND * NETSTACK_RDC_CHANNEL_CHECK_RATE) > 65535
        cycle_start = sync_cycle_start + ((unsigned long)(sync_cycle_phase*RTIMER_ARCH_SECOND))/NETSTACK_RDC_CHANNEL_CHECK_RATE;
-       //PRINTF("prova 2\n");
 #else
        cycle_start = sync_cycle_start + (sync_cycle_phase*RTIMER_ARCH_SECOND)/NETSTACK_RDC_CHANNEL_CHECK_RATE;
-       //PRINTF("prova 3\n");
 #endif
     }
 #else
-    PRINTF("prova 4\n");
     cycle_start += CYCLE_TIME;
-    PRINTF("cycle_start = %u\n",cycle_start);
 #endif
 =======*/
     } else {
@@ -467,7 +464,8 @@ does not control the transmission*/
        cycle_start = sync_cycle_start + (sync_cycle_phase*RTIMER_ARCH_SECOND)/CYCLE_RATE;
 #endif
     }
-#else  /* if !PRECISE_SYNC_CYCLE_STARTS */
+#else  /* if !PRECISE_SYNC_CYCLE_STARTS */ ///CYCLE_TIME non è potenza di 2
+    PRINTF("entro nel codice di monica --> CYCLE_TIME non e' potenza di 2\n");
     if ((++sync_cycle_phase) >= CYCLE_RATE) {
       sync_cycle_phase = 0;
       }
@@ -476,7 +474,8 @@ does not control the transmission*/
      * and truncation error will be avoided */
     cycle_start += (sync_cycle_phase < CYCLE_TIME_SYNC_TICKS) ? (CYCLE_TIME + 1) : CYCLE_TIME;
 #endif /* PRECISE_SYNC_CYCLE_STARTS */
-#else  /* if !SYNC_CYCLE_STARTS */
+#else  /* if !SYNC_CYCLE_STARTS */ ///CYCLE_TIME è potenza di 2
+    PRINTF("CYCLE_TIME è potenza di 2\n");
     cycle_start += CYCLE_TIME;
 #endif /* SYNC_CYCLE_STARTS */
 //>>>>>>> pippo
@@ -640,7 +639,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
   packetbuf_set_addr(PACKETBUF_ADDR_SENDER, &rimeaddr_node_addr);
   if(rimeaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_RECEIVER), &rimeaddr_null)) {
     is_broadcast = 1;
-    PRINTDEBUG("contikimac: send broadcast\n");
+  //  PRINTDEBUG("contikimac: send broadcast\n");
 
     if(broadcast_rate_drop()) {
       return MAC_TX_COLLISION;

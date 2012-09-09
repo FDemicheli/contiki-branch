@@ -42,6 +42,8 @@
 #include "sys/energest.h"
 #include "contiki-conf.h"
 
+/**ENERGEST_CONF_LEVELDEVICE_LEVELS = It is suitable when a device has several energy levels. An example of its use is when changing 
+                                      radio transmission power*/
 #if ENERGEST_CONF_ON
 
 int energest_total_count;

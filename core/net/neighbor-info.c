@@ -64,9 +64,7 @@ update_metric(const rimeaddr_t *dest, int packet_metric) ///aggiorna la link_met
   unsigned long time;
 
 /** void *neighbor_attr_get_data(struct neighbor_attr *, const rimeaddr_t *addr) = get pointer to neighbor table data specified by id*/
-  //PRINTF("attr_etx = %d\n", &attr_etx);
   metricp = (link_metric_t *)neighbor_attr_get_data(&attr_etx, dest);
- // PRINTF(" metricp = %d\n", *metricp);
   //PRINTF("packet_metric_prima (valore intero) = %d\n", packet_metric); vale 1
   packet_metric = NEIGHBOR_INFO_ETX2FIX(packet_metric);
   //PRINTF("packet_metric_dopo (punto fisso) = %d\n", packet_metric); vale 16
@@ -84,36 +82,39 @@ update_metric(const rimeaddr_t *dest, int packet_metric) ///aggiorna la link_met
   {
     recorded_metric = *metricp; //vale 16
     //PRINTF("recorded_metric = %d\n", recorded_metric);
-    /** Update the EWMA of the ETX for the neighbor. */    
+    /// Update the EWMA of the ETX for the neighbor    
     ///etx_update = 0.9 * etx_recorded_until_now + (0.1) * etx_last
     new_metric = ((uint16_t)recorded_metric * ETX_ALPHA +
                (uint16_t)packet_metric * (ETX_SCALE - ETX_ALPHA)) / ETX_SCALE;
     PRINTF("link_metric con metricp = 16, quindi dopo EWMA vale %d\n", new_metric);
   }
   //I dati vengono convertiti da un valore di punto fisso a intero:
-  PRINTF("neighbor-info: ETX changed from %d to %d (packet ETX = %d) %d\n",
-	 NEIGHBOR_INFO_FIX2ETX(recorded_metric), /*240/16 = 15*/
-	 NEIGHBOR_INFO_FIX2ETX(new_metric), /*16/16 = 1 */
+ /* PRINTF("neighbor-info: ETX changed from %d to %d (packet ETX = %d) %d\n",
+	 NEIGHBOR_INFO_FIX2ETX(recorded_metric), // 240/16 = 15
+	 NEIGHBOR_INFO_FIX2ETX(new_metric), // 16/16 = 1 
 	 NEIGHBOR_INFO_FIX2ETX(packet_metric),
-         dest->u8[7]);
+         dest->u8[7]);*/
 
   if(neighbor_attr_has_neighbor(dest)) ///Check if a neighbor is already added to the neighbor table
   {
     time = clock_seconds();
     neighbor_attr_set_data(&attr_etx, dest, &new_metric); /** Copy data to neighbor table*/
-    neighbor_attr_set_data(&attr_timestamp, dest, &time);
     if(new_metric != recorded_metric && subscriber_callback != NULL) {
       subscriber_callback(dest, 1, new_metric); ///Subscribe to notifications of changed neighbor information
     }
+    if(subscriber_callback != NULL)
+      subscriber_callback(dest, 1,new_metric);
   }
 }
 /*---------------------------------------------------------------------------*/
 /* Function added by RMonica
  * see header (neighbor-info.h) for explanation
  */
+/*
 void
 neighbor_info_other_source_metric_update(const rimeaddr_t * node, int known)
 {
+  PRINTF("NEIGHBOR INFO: sono dentro la funct di Monica\n");
   link_metric_t *metricp;
   link_metric_t recorded_metric = NEIGHBOR_INFO_ETX2FIX(ETX_LIMIT);
   metricp = (link_metric_t *)neighbor_attr_get_data(&attr_etx, node);
@@ -126,14 +127,14 @@ neighbor_info_other_source_metric_update(const rimeaddr_t * node, int known)
       subscriber_callback(node, known, recorded_metric);
     }
   }
-}
+}*/
 /*---------------------------------------------------------------------------*/
 static void
 add_neighbor(const rimeaddr_t *addr)
 {
   switch(neighbor_attr_add_neighbor(addr)) {
   case -1:
-    PRINTF("neighbor-info: failed to add a node.\n");
+    //PRINTF("neighbor-info: failed to add a node.\n");
     break;
   case 0:
     PRINTF("neighbor-info: The neighbor is already known\n");
@@ -156,13 +157,17 @@ neighbor_info_packet_sent(int status, int numtx) ///Notify the neighbor informat
   if(rimeaddr_cmp(dest, &rimeaddr_null)) {
     return;
   }
-  //PRINTF("numtx = %d\n", numtx);
-  packet_metric = numtx; //numtx vale 1
+  
+ packet_metric = numtx; //numtx vale 1
 
-  PRINTF("neighbor-info: packet sent to %d.%d, status=%d, metric=%u\n",
+  /*PRINTF("neighbor-info: packet sent to %d.%d, status=%d, metric=%u\n",
 	dest->u8[sizeof(*dest) - 2], dest->u8[sizeof(*dest) - 1],
-	status, (unsigned)packet_metric);
+	status, (unsigned)packet_metric);*/
 
+PRINTF("neighbor-info: packet sent to %d.%d, status=%d\n",
+	dest->u8[sizeof(*dest) - 2], dest->u8[sizeof(*dest) - 1],
+	status);
+	
   switch(status) {
   case MAC_TX_OK:
     add_neighbor(dest);
@@ -186,9 +191,8 @@ neighbor_info_packet_sent(int status, int numtx) ///Notify the neighbor informat
        errors occur. */
     return;
   }
-  PRINTF("Neighbor-info: update metric\n");
+  //PRINTF("Neighbor-info: update metric\n");
   update_metric(dest, packet_metric);
-  //PRINTF("packet_metric = %d\n",packet_metric);
 }
 /*---------------------------------------------------------------------------*/
 void

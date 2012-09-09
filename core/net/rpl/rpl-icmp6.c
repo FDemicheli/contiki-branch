@@ -162,9 +162,9 @@ dis_input(void)
   rpl_instance_t *end;
 
   /* DAG Information Solicitation */
-  PRINTF("RPL: Received a DIS from ");
+/*  PRINTF("RPL: Received a DIS from ");
   PRINT6ADDR(&UIP_IP_BUF->srcipaddr);
-  PRINTF("\n");
+  PRINTF("\n");*/
 
   for(instance = &instance_table[0], end = instance + RPL_MAX_INSTANCES; instance < end; ++instance) {
     if(instance->used == 1) {
@@ -204,9 +204,9 @@ dis_output(uip_ipaddr_t *addr)
     addr = &tmpaddr;
   }
 
-  PRINTF("RPL: Sending a DIS to ");
+/*  PRINTF("RPL: Sending a DIS to ");
   PRINT6ADDR(addr);
-  PRINTF("\n");
+  PRINTF("\n");*/
 
   uip_icmp6_send(addr, ICMP6_RPL, RPL_CODE_DIS, 2);
 }
@@ -300,7 +300,7 @@ dio_input(void) /** cosa succede alla ricezione di un DIO  */
     }
 
     if(len + i > buffer_length) {
-      PRINTF("RPL: Invalid DIO packet\n");
+     // PRINTF("RPL: Invalid DIO packet\n");
       RPL_STAT(rpl_stats.malformed_msgs++);
       return;
     }
@@ -310,7 +310,7 @@ dio_input(void) /** cosa succede alla ricezione di un DIO  */
     switch(subopt_type) {
     case RPL_OPTION_DAG_METRIC_CONTAINER:
       if(len < 8) {
-        PRINTF("RPL: Invalid DAG MC, len = %d\n", len);
+       // PRINTF("RPL: Invalid DAG MC, len = %d\n", len);
 	RPL_STAT(rpl_stats.malformed_msgs++);
         return;
       }
@@ -319,60 +319,58 @@ dio_input(void) /** cosa succede alla ricezione di un DIO  */
       dio.mc.flags |= buffer[i + 4] >> 7;
       dio.mc.aggr = (buffer[i + 4] >> 4) & 0x3;
       dio.mc.prec = buffer[i + 4] & 0xf;
-      dio.mc.node_cycle_time = get16(buffer, i + 5);
+      //PRINTF("get16(buffer, i + 5) = %u\n",get16(buffer, i + 5));
+      //dio.mc.node_cycle_time = get16(buffer, i + 5);
+      //PRINTF("DIO_INPUT: mc.node_cycle_time ricevuto = %u\n", dio.mc.node_cycle_time);///viene rx il cycle time del nodo che ha inviato il DIO
+       
       dio.mc.length = buffer[i + 7];
-
+      //dio.mc.length = buffer[i + 5]; //vale 2
+     // PRINTF("dio.mc.length = %d\n",dio.mc.length);
+      //PRINTF("get16(buffer, i + 7) = %u\n", get16(buffer, i + 7));vale 4
       if(dio.mc.type == RPL_DAG_MC_ETX) {
-/*<<<<<<< HEAD
-        dio.mc.obj.etx = get16(buffer, i + 6);
-	PRINTF("dio_input: dio.mc.obj.etx = %u\n", dio.mc.obj.etx);
-        //PRINTF("RPL: DAG MC: type %u, flags %u, aggr %u, prec %u, length %u, ETX %u\n",
-	//PRINTF("RPL: DAG MC: type %u, ETX %u\n",       
-	  //     (unsigned)dio.mc.type,  
-	       //(unsigned)dio.mc.flags, 
-	       //(unsigned)dio.mc.aggr, 
-	       //(unsigned)dio.mc.prec, 
-	       //(unsigned)dio.mc.length, 
-	    //   (unsigned)dio.mc.obj.etx);
-      } else if(dio.mc.type == RPL_DAG_MC_ENERGY) {
-        dio.mc.obj.energy.flags = buffer[i + 6];
-        dio.mc.obj.energy.energy_est = buffer[i + 7];
-	//PRINTF("energy_est = %d\n", dio.mc.obj.energy.energy_est);
-      } else {
-=======*/
+	//PRINTF("get16(buffer, i + 8) = %u\n", get16(buffer, i + 8));
         dio.mc.obj.etx = get16(buffer, i + 8);
-
-        PRINTF("RPL: DAG MC: type %u, flags %u, aggr %u, prec %u, length %u, ETX %u\n",
-	       (unsigned)dio.mc.type,  
-	       (unsigned)dio.mc.flags, 
-	       (unsigned)dio.mc.aggr, 
-	       (unsigned)dio.mc.prec, 
-	       (unsigned)dio.mc.length, 
-	       (unsigned)dio.mc.obj.etx);
+	//PRINTF("RPL: DAG MC: type %u, ETX %u\n",       
+        //PRINTF("RPL: DAG MC: type %u, flags %u, aggr %u, prec %u, length %u, ETX %u\n",
+//	       (unsigned)dio.mc.type,  
+	  //     (unsigned)dio.mc.flags, 
+	    //   (unsigned)dio.mc.aggr, 
+	    //   (unsigned)dio.mc.prec, 
+	    //   (unsigned)dio.mc.length, 
+//	       (unsigned)dio.mc.obj.etx);
+	 
       } else if(dio.mc.type == RPL_DAG_MC_ENERGY) {
         dio.mc.obj.energy.flags = buffer[i + 8];
         dio.mc.obj.energy.energy_est = buffer[i + 9];
-      } else if(dio.mc.type == RPL_DAG_MC_AVG_DELAY) {
+      } else if(dio.mc.type == RPL_DAG_MC_AVG_DELAY) {//Monica
         dio.mc.obj.avg_delay_to_sink = get16(buffer, i + 8);
-      }else {
+      }
+        else if(dio.mc.type == RPL_DAG_MC_MLT) {///Demicheli
+	  //PRINTF("get16(buffer, i + 6) = %u\n", get16(buffer, i + 6));
+	//  PRINTF("get16(buffer, i + 8) = %u\n", get16(buffer, i + 8));
+	//Deve andare a leggere il valore di node_cycle_time e metterlo in mlt
+        dio.mc.obj.mlt = get16(buffer, i + 8);///deve contenere il cycle time ricevuto, da confrontare con quello del nodo corrente
+	PRINTF("DIO_INPUT: mc.obj.mlt = %u\n", dio.mc.obj.mlt);
+      }	
+      else {
 //>>>>>>> pippo
-       PRINTF("RPL: Unhandled DAG MC type: %u\n", (unsigned)dio.mc.type);
+      // PRINTF("RPL: Unhandled DAG MC type: %u\n", (unsigned)dio.mc.type);
        return;
       }
 
       /* Added by RMonica
        * Send cycle time updates to ContikiMAC
        */
-      /* scope only */ {
+      /* scope only */ /*{
         rimeaddr_t macaddr;
         uip_ds6_get_addr_iid(&from,(uip_lladdr_t *)&macaddr);
         contikimac_cycle_time_update(&macaddr,dio.mc.node_cycle_time);
-      }
+      }*/
 
       break;
     case RPL_OPTION_ROUTE_INFO:
       if(len < 9) {
-        PRINTF("RPL: Invalid destination prefix option, len = %d\n", len);
+      //  PRINTF("RPL: Invalid destination prefix option, len = %d\n", len);
 	RPL_STAT(rpl_stats.malformed_msgs++);
         return;
       }
@@ -384,7 +382,7 @@ dio_input(void) /** cosa succede alla ricezione di un DIO  */
 
       if(((dio.destination_prefix.length + 7) / 8) + 8 <= len &&
          dio.destination_prefix.length <= 128) {
-        PRINTF("RPL: Copying destination prefix\n");
+    //    PRINTF("RPL: Copying destination prefix\n");
         memcpy(&dio.destination_prefix.prefix, &buffer[i + 8],
                (dio.destination_prefix.length + 7) / 8);
       } else {
@@ -411,7 +409,7 @@ dio_input(void) /** cosa succede alla ricezione di un DIO  */
       /* buffer + 12 is reserved */
       dio.default_lifetime = buffer[i + 13];
       dio.lifetime_unit = get16(buffer, i + 14);
-    /*  PRINTF("RPL: DAG conf:dbl=%d, min=%d red=%d maxinc=%d mininc=%d ocp=%d d_l=%u l_u=%u\n",
+      /*PRINTF("RPL: DAG conf:dbl=%d, min=%d red=%d maxinc=%d mininc=%d ocp=%d d_l=%u l_u=%u\n",
              dio.dag_intdoubl, dio.dag_intmin, dio.dag_redund,
              dio.dag_max_rankinc, dio.dag_min_hoprankinc, dio.ocp,
              dio.default_lifetime, dio.lifetime_unit);*/
@@ -499,19 +497,24 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr) /** cosa succede pri
 
 #if !RPL_LEAF_ONLY
   if(instance->mc.type != RPL_DAG_MC_NONE) {
-    instance->of->update_metric_container(instance); /** prima dell'invio del DIO, il nodo aggiorna la metrica */
+    /** prima dell'invio del DIO, il nodo aggiorna metric container */
+  //  PRINTF("DIO_OUTPUT: VADO IN UMC\n");
+    instance->of->update_metric_container(instance); ///a node must send his cycle time value
     buffer[pos++] = RPL_OPTION_DAG_METRIC_CONTAINER;
     buffer[pos++] = 8; // size of the metric container
     buffer[pos++] = instance->mc.type;
     buffer[pos++] = instance->mc.flags >> 1;
     buffer[pos] = (instance->mc.flags & 1) << 7;
     buffer[pos++] |= (instance->mc.aggr << 4) | instance->mc.prec;
-    set16(buffer, pos, instance->mc.node_cycle_time);
+    //set16(buffer, pos, instance->mc.node_cycle_time);/// node's cycle time 
+    //PRINTF("DIO_OUTPUT: mc.node_cycle_time da spedire = %u\n", instance->mc.node_cycle_time);///send the cycle time of the current node
     pos += 2;
+    
     if(instance->mc.type == RPL_DAG_MC_ETX) {
       buffer[pos++] = 2;
       set16(buffer, pos, instance->mc.obj.etx);
       pos += 2;
+     // PRINTF("DIO_OUTPUT: mc.obj.etx = %u\n",instance->mc.obj.etx);      
     } else if(instance->mc.type == RPL_DAG_MC_ENERGY) {
       buffer[pos++] = 2;
       buffer[pos++] = instance->mc.obj.energy.flags;
@@ -520,9 +523,16 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr) /** cosa succede pri
       buffer[pos++] = 2;
       set16(buffer, pos, instance->mc.obj.avg_delay_to_sink);
       pos += 2;
-    } else {
-      PRINTF("RPL: Unable to send DIO because of unhandled DAG MC type %u\n",
-	(unsigned)instance->mc.type);
+    } else if(instance->mc.type == RPL_DAG_MC_MLT) {///Demicheli
+      buffer[pos++] = 2;
+      set16(buffer, pos, instance->mc.obj.mlt);//cycle time of the DIO sender
+      //set16(buffer, pos, instance->mc.node_cycle_time);////// cycle time of the DIO sender
+      pos += 2;
+      PRINTF("DIO_OUTPUT: mc.obj.mlt da spedire= %u\n",instance->mc.obj.mlt);      
+    } 
+      else {
+    //  PRINTF("RPL: Unable to send DIO because of unhandled DAG MC type %u\n",
+	//(unsigned)instance->mc.type);
       return;
     }
   }
@@ -561,8 +571,8 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr) /** cosa succede pri
     pos += 4;
     memcpy(&buffer[pos], &dag->prefix_info.prefix, 16);
     pos += 16;
- //   PRINTF("RPL: Sending prefix info in DIO for ");
-    PRINT6ADDR(&dag->prefix_info.prefix);
+    //PRINTF("RPL: Sending prefix info in DIO for ");
+    //PRINT6ADDR(&dag->prefix_info.prefix);
     PRINTF("\n");
   } else {
    // PRINTF("RPL: No prefix to announce (len %d)\n",
@@ -570,8 +580,8 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr) /** cosa succede pri
   }
 
 #if RPL_LEAF_ONLY
-  PRINTF("RPL: Sending unicast-DIO with rank %u to ",
-      (unsigned)dag->rank);
+ // PRINTF("RPL: Sending unicast-DIO with rank %u to ",
+  //    (unsigned)dag->rank);
   PRINT6ADDR(uc_addr);
   PRINTF("\n");
   uip_icmp6_send(uc_addr, ICMP6_RPL, RPL_CODE_DIO, pos);
@@ -584,9 +594,9 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr) /** cosa succede pri
     uip_create_linklocal_rplnodes_mcast(&addr);
     uip_icmp6_send(&addr, ICMP6_RPL, RPL_CODE_DIO, pos);
   } else {
-    PRINTF("RPL: Sending unicast-DIO with rank %u to ",
-        (unsigned)instance->current_dag->rank);
-    PRINT6ADDR(uc_addr);
+    //PRINTF("RPL: Sending unicast-DIO with rank %u to ",
+      //  (unsigned)instance->current_dag->rank);
+    //PRINT6ADDR(uc_addr);
     PRINTF("\n");
     uip_icmp6_send(uc_addr, ICMP6_RPL, RPL_CODE_DIO, pos);
   }
@@ -686,9 +696,9 @@ dao_input(void)
     }
   }
 
-  PRINTF("RPL: DAO lifetime: %u, prefix length: %u prefix: ",
+ /* PRINTF("RPL: DAO lifetime: %u, prefix length: %u prefix: ",
           (unsigned)lifetime, (unsigned)prefixlen);
-  PRINT6ADDR(&prefix);
+  PRINT6ADDR(&prefix);*/
   PRINTF("\n");
 
   rep = uip_ds6_route_lookup(&prefix);
@@ -734,8 +744,8 @@ dao_input(void)
 
   if(learned_from == RPL_ROUTE_FROM_UNICAST_DAO) {
     if(dag->preferred_parent) {
-      PRINTF("RPL: Forwarding DAO to parent ");
-      PRINT6ADDR(&dag->preferred_parent->addr);
+    /*  PRINTF("RPL: Forwarding DAO to parent ");
+      PRINT6ADDR(&dag->preferred_parent->addr);*/
       PRINTF("\n");
       uip_icmp6_send(&dag->preferred_parent->addr,
                      ICMP6_RPL, RPL_CODE_DAO, buffer_length);
@@ -759,7 +769,7 @@ dao_output(rpl_parent_t *n, uint8_t lifetime)
   /* Destination Advertisement Object */
 
   if(get_global_addr(&prefix) == 0) {
-    PRINTF("RPL: No global address set for this node - suppressing DAO\n");
+  //  PRINTF("RPL: No global address set for this node - suppressing DAO\n");
     return;
   }
 
@@ -833,9 +843,9 @@ dao_ack_input(void)
   sequence = buffer[2];
   status = buffer[3];
 
-  PRINTF("RPL: Received a DAO ACK with sequence number %d and status %d from ",
+  /*PRINTF("RPL: Received a DAO ACK with sequence number %d and status %d from ",
     sequence, status);
-  PRINT6ADDR(&UIP_IP_BUF->srcipaddr);
+  PRINT6ADDR(&UIP_IP_BUF->srcipaddr);*/
   PRINTF("\n");
 }
 /*---------------------------------------------------------------------------*/
@@ -844,8 +854,8 @@ dao_ack_output(rpl_instance_t *instance, uip_ipaddr_t *dest, uint8_t sequence)
 {
   unsigned char *buffer;
 
-  PRINTF("RPL: Sending a DAO ACK with sequence number %d to ", sequence);
-  PRINT6ADDR(dest);
+  //PRINTF("RPL: Sending a DAO ACK with sequence number %d to ", sequence);
+  //PRINT6ADDR(dest);
   PRINTF("\n");
 
   buffer = UIP_ICMP_PAYLOAD;

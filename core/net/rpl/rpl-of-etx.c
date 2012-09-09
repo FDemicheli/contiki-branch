@@ -59,6 +59,8 @@
 #include "net/rpl/rpl-private.h"
 #include "net/neighbor-info.h"
 
+//#include "powertrace.h"
+
 #define DEBUG DEBUG_NONE
 //#define DEBUG DEBUG_PRINT
 
@@ -98,14 +100,17 @@ rpl_of_t rpl_of_etx = {
  * The rank must differ more than 1/PARENT_SWITCH_THRESHOLD_DIV in order
  * to switch preferred parent.
  */
-#define PARENT_SWITCH_THRESHOLD_DIV	2
+#define PARENT_SWITCH_THRESHOLD_DIV	2 /*x discriminare i due rank*/
 
 #define AVG_DELAY_MAX_DELAY 65535
 #define AVG_DELAY_SWITCH_THRESHOLD (RTIMER_ARCH_SECOND / 3000)
 
 typedef uint16_t rpl_path_metric_t;
+typedef uint16_t rpl_node_metric_t;//FDemicheli. Because of the first version isn't an additive metric but a node metric
 
-static rpl_path_metric_t
+
+///Per la prima versione non serve, per la metrica globale forse mi torna utile
+/**static rpl_path_metric_t
 calculate_path_metric(rpl_parent_t *p)
 {
 #if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY)
@@ -113,15 +118,15 @@ calculate_path_metric(rpl_parent_t *p)
     return MAX_PATH_COST * RPL_DAG_MC_ETX_DIVISOR;
   } else {
     long etx = p->link_metric;//all'inizio vale INITIAL_LINK_METRIC
-    PRINTF("link_metric in rpl-of-etx = %ld\n", etx);
+   // PRINTF("link_metric in rpl-of-etx = %ld\n", etx);
     etx = (etx * RPL_DAG_MC_ETX_DIVISOR) / NEIGHBOR_INFO_ETX_DIVISOR;
-    PRINTF("etx = %lu\n", etx);
-    PRINTF("p->mc.obj.etx = %u\n", p->mc.obj.etx);
-    PRINTF("(uint16_t) etx = %d\n", (uint16_t) etx);
-    PRINTF("p->mc.obj.etx + (uint16_t) etx = %d\n", p->mc.obj.etx + (uint16_t) etx);
+    //PRINTF("etx = %lu\n", etx);
+    //PRINTF("p->mc.obj.etx = %u\n", p->mc.obj.etx);
+    //PRINTF("(uint16_t) etx = %d\n", (uint16_t) etx);
+    //PRINTF("p->mc.obj.etx + (uint16_t) etx = %d\n", p->mc.obj.etx + (uint16_t) etx);
     return p->mc.obj.etx + (uint16_t) etx;
   }
-#elif RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY
+#elif RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY // RMonica
   if(p == NULL || (p->mc.obj.avg_delay_to_sink == 0 && p->rank > ROOT_RANK(p->dag->instance))) {
     return AVG_DELAY_MAX_DELAY;
   } else {
@@ -138,9 +143,14 @@ calculate_path_metric(rpl_parent_t *p)
     return (rpl_path_metric_t)delay;
   }
 #else
+
+#elif RPL_DAG_MC == RPL_DAG_MC_MLT // FDemicheli
+Con l'introduzione della metrica globale anche io dovrò avere qlc del tipo mlt += ..., dove mlt sarà il mio parametro additivo.
+
+
 #error "calculate_path_metric: Not supported."
 #endif
-}
+} */
 
 static void
 reset(rpl_dag_t *sag)
@@ -165,24 +175,26 @@ calculate_rank(rpl_parent_t *p, rpl_rank_t base_rank)
     if(base_rank == 0) {
       return INFINITE_RANK;
     }
-    rank_increase = NEIGHBOR_INFO_FIX2ETX(INITIAL_LINK_METRIC) * RPL_MIN_HOPRANKINC; //valore intero
+  //  rank_increase = NEIGHBOR_INFO_FIX2ETX(INITIAL_LINK_METRIC) * RPL_MIN_HOPRANKINC; //valore intero
     //rank_increase = NEIGHBOR_INFO_FIX2ETX(80) * 256 = (80/16) * 256 = 5 * 256 = 1280
     //PRINTF("rank_increase (1280) = %d\n",rank_increase);
+   ///NB: è solo temporaneo
+    rank_increase = RPL_MIN_HOPRANKINC; ///vale 256.
   } else {
     /* multiply first, then scale down to avoid truncation effects */
-//<<<<<<< HEAD
-  //  rank_increase = NEIGHBOR_INFO_FIX2ETX(p->link_metric * p->dag->instance->min_hoprankinc); //valore intero
+#if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY)
+    rank_increase = NEIGHBOR_INFO_FIX2ETX(p->link_metric * p->dag->instance->min_hoprankinc);//valore intero
     //rank_increase = p->link_metric * 256 = ETX * 256
     //PRINTF("rank_increase = %d\n",rank_increase);
-//=======
-#if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY)
-    rank_increase = NEIGHBOR_INFO_FIX2ETX(p->link_metric * p->dag->instance->min_hoprankinc);
 #elif RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY
+    rank_increase = NEIGHBOR_INFO_FIX2ETX(p->dag->instance->min_hoprankinc);
+    
+#elif RPL_DAG_MC == RPL_DAG_MC_MLT /*FDemicheli*/
+
     rank_increase = NEIGHBOR_INFO_FIX2ETX(p->dag->instance->min_hoprankinc);
 #else
 #error "calculate_rank: not supported."
 #endif
-//>>>>>>> pippo
     if(base_rank == 0) {
       base_rank = p->rank; ///base_rank è in sostanza il rank del parent
       //PRINTF("base rank = %d\n", base_rank);
@@ -219,95 +231,154 @@ best_dag(rpl_dag_t *d1, rpl_dag_t *d2)
 static rpl_parent_t *
 best_parent(rpl_parent_t *p1, rpl_parent_t *p2) //Compares two parents and returns the best one, according to the OF.
 {
+ /**Funzione con commenti temporanei xchè la prima versione della metrica era locale e non globale. Con l'introduzione della metrica globale,
+ dovrò tornare alla funzione nella forma originale*/
+  
   rpl_dag_t *dag;
-  rpl_path_metric_t min_diff;
+  /*rpl_path_metric_t min_diff;
   rpl_path_metric_t p1_metric;
-  rpl_path_metric_t p2_metric;
+  rpl_path_metric_t p2_metric;*/
+  
+  //Demicheli
+  rpl_node_metric_t  pp_cycle_time;///preferred_parent's cycle time
+  //Demicheli
+  rpl_node_metric_t  dio_sender_cycle_time;///DIO sender's cycle time
 
   dag = p1->dag; /* Both parents must be in the same DAG. */
 
-#if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY)
+/*#if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY)
   min_diff = RPL_DAG_MC_ETX_DIVISOR / PARENT_SWITCH_THRESHOLD_DIV;
-//<<<<<<< HEAD
-  //           PARENT_SWITCH_THRESHOLD_DIV; //x discriminare i due rank
-	     
-  //PRINTF("p1 = %d\n",p1);
-  //PRINTF("p2 = %d\n",p2);
-//  PRINTF("BEST PARENT: calculate path metric. Calcolo p1_metric\n");
-//=======
 #elif (RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY)
   min_diff = AVG_DELAY_SWITCH_THRESHOLD;
+//#elif (RPL_DAG_MC == RPL_DAG_MC_MLT)   
 #else
 #error "best_parent: RPL_DAG_MC not supported."
-#endif
+#endif  */
 
-//>>>>>>> pippo
-  p1_metric = calculate_path_metric(p1);
-  PRINTF("p1_metric = %u\n",p1_metric);
+//Fdemicheli
+  p1 = p1->dag->preferred_parent;
   
-  PRINTF("BEST PARENT: calculate path metric. Calcolo p2_metric\n");
+  pp_cycle_time = p1->mc.obj.mlt;
+  PRINT6ADDR(&dag->preferred_parent->addr);
+  PRINTF(" :CYCLE_TIME = %u\n",pp_cycle_time);
+  
+  dio_sender_cycle_time =  p2->mc.obj.mlt; ///cycle time del dio_sender . Lo legge se abilito update_metric_container
+  PRINT6ADDR(&p2->addr);
+  PRINTF(" :CYCLE_TIME = %u\n",dio_sender_cycle_time);
+  
+  if(p1 == dag->preferred_parent || p2 == dag->preferred_parent)
+  {
+    if(pp_cycle_time == 0)//Se il DIO sender è il root, deve diventare automaticamente il preferred_parent
+    {
+     return dag->preferred_parent = p1; ///cioè il root, xchè il root è il preferred parent di default
+    }
+    else if(dio_sender_cycle_time == 0)
+    {
+      return dag->preferred_parent = p2;///sempre il root
+    } 
+    else if(pp_cycle_time > dio_sender_cycle_time)
+    {
+     return dag->preferred_parent = p1;
+    }
+  
+    else if(pp_cycle_time < dio_sender_cycle_time)
+    {
+     return dag->preferred_parent = p2;
+    } 
+    else if(pp_cycle_time == dio_sender_cycle_time)///se due nodi hanno lo stesso cycle time, devo scegliere quello col rank minore
+    {
+      //PRINTF("RPL-OF-MLT: p1_node == p2_node\n");
+      if(p1->rank < p2->rank)
+       {
+	 PRINTF("RPL-OF-MLT p1<p2: p1->rank = %d, p2->rank = %d\n",p1->rank, p2->rank);
+          return dag->preferred_parent = p1;
+       }
+      else if(p1->rank > p2->rank)
+       {
+	PRINTF("RPL-OF-MLT p1>p2: p1->rank = %d, p2->rank = %d\n",p1->rank, p2->rank);
+        return dag->preferred_parent = p2;
+       } 
+        else
+	{
+	/*  PRINTF("RPL-OF-MLT. PP: ");
+	  PRINT6ADDR(&dag->preferred_parent->addr);
+	  PRINTF("\n");*/
+	  return dag->preferred_parent;
+	}
+    }
+  }  
+  
+  else
+  {
+      PRINTF("non va una sega\n");   
+  }
+
+
+/*  p1_metric = calculate_path_metric(p1);
+  //PRINTF("p1_metric = %u\n",p1_metric);
+  
+  //PRINTF("BEST PARENT: calculate path metric. Calcolo p2_metric\n");
   p2_metric = calculate_path_metric(p2);
-  PRINTF("p2_metric = %u\n",p2_metric);
+  //PRINTF("p2_metric = %u\n",p2_metric);*/
 
   /* Maintain stability of the preferred parent in case of similar ranks. */
   /*Il preferred parent viene calcolato in rpl-dag.c*/
-  if(p1 == dag->preferred_parent || p2 == dag->preferred_parent) {
+/*  if(p1 == dag->preferred_parent || p2 == dag->preferred_parent) {
     if(p1_metric < p2_metric + min_diff &&
        p1_metric > p2_metric - min_diff) {
-     /* PRINTF("RPL: MRHOF hysteresis: %u <= %u <= %u\n",
+      PRINTF("RPL: MRHOF hysteresis: %u <= %u <= %u\n",
              p2_metric - min_diff,
              p1_metric,
-             p2_metric + min_diff);*/
+             p2_metric + min_diff);
       return dag->preferred_parent;
     }
   }
 
-  return p1_metric < p2_metric ? p1 : p2;
+  return p1_metric < p2_metric ? p1 : p2;*/
+return 0;
 }
 
 static void
 update_metric_container(rpl_instance_t *instance)
 {
-  //PRINTF("Sono dentro update_metric_container\n");
-  rpl_path_metric_t path_metric;
+  PRINTF("Sono dentro update_metric_container\n");
+  //rpl_path_metric_t path_metric;
   rpl_dag_t *dag;
 /*#if RPL_DAG_MC == RPL_DAG_MC_ENERGY
   uint8_t type;
 #endif*/
-
+  
   instance->mc.flags = RPL_DAG_MC_FLAG_P;
   instance->mc.aggr = RPL_DAG_MC_AGGR_ADDITIVE;
-/*<<<<<<< HEAD
   instance->mc.prec = 0; //indica che l'oggetto metrica ha la precedenza
-=======*/
-  instance->mc.prec = 0;
+  
   /* Following line added by RMonica */
   instance->mc.node_cycle_time = contikimac_get_cycle_time_for_routing();
-//>>>>>>> pippo
-
+  
   dag = instance->current_dag;
 
   if (!dag->joined) {
     /* We should probably do something here */
     return;
   }
-
+/** 
+ Con la prima versione della metrica non mi serve xchè non è una metrica additiva. Forse mi viene buono per la seconda versione
   if(dag->rank == ROOT_RANK(instance)) {
-    PRINTF("path_metric = 0\n");
     path_metric = 0;
   } else {
-    PRINTF("calcolo path_metric\n");
+    //PRINTF("calcolo path_metric\n");
     path_metric = calculate_path_metric(dag->preferred_parent);//viene aggiornata la metrica di cammino in base al nuovo preferred parent
-  }
+  }*/
   
 #if RPL_DAG_MC == RPL_DAG_MC_ETX /*viene def. in rpl-conf.h riga 54*/
-
+  //PRINTF("entro in dag_mc_etx\n");
   instance->mc.type = RPL_DAG_MC_ETX;//la metrica è ETX
   
   instance->mc.length = sizeof(instance->mc.obj.etx);
   
   instance->mc.obj.etx = path_metric;
-  PRINTF("metrica aggiornata = %u\n",instance->mc.obj.etx);
+  
+  PRINTF("update mc: metrica aggiornata = %u\n",instance->mc.obj.etx);
 
 /*  PRINTF("RPL: My path ETX to the root is %u.%u\n",
 	instance->mc.obj.etx / RPL_DAG_MC_ETX_DIVISOR,
@@ -315,7 +386,7 @@ update_metric_container(rpl_instance_t *instance)
 /*
 #elif RPL_DAG_MC == RPL_DAG_MC_ENERGY
 
-  instance->mc.type = RPL_DAG_MC_ENERGY;//la metrica è il consumo di energia
+  instance->mc.type = RPL_DAG_MC_ENERGY;
   instance->mc.length = sizeof(instance->mc.obj.energy);
 
   if(dag->rank == ROOT_RANK(instance)) { //viene selezionato un nodo alimentato oppure con la batteria
@@ -327,19 +398,28 @@ update_metric_container(rpl_instance_t *instance)
   }
 
   instance->mc.obj.energy.flags = type << RPL_DAG_MC_ENERGY_TYPE;
-<<<<<<< HEAD
-  instance->mc.obj.energy.energy_est = path_metric;//viene stimata l'energia rimanente??
-  PRINTF("mc.obj.energy.energy_est = %d\n", instance->mc.obj.energy.energy_est);*/
-//=======
   instance->mc.obj.energy.energy_est = path_metric;
+  PRINTF("mc.obj.energy.energy_est = %d\n", instance->mc.obj.energy.energy_est);*/
 
-#elif RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY
+#elif RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY /*RMonica*/
 
   instance->mc.type = RPL_DAG_MC_AVG_DELAY;
   instance->mc.length = sizeof(instance->mc.obj.avg_delay_to_sink);
   instance->mc.obj.avg_delay_to_sink = path_metric;
 
->>>>>>> pippo
+#elif RPL_DAG_MC == RPL_DAG_MC_MLT /*FDemicheli*/
+
+  instance->mc.type = RPL_DAG_MC_MLT;
+
+  instance->mc.length = sizeof(instance->mc.obj.mlt);//2 byte = 16 bit
+  
+  instance->mc.obj.mlt = instance->mc.node_cycle_time; ///questo è il cycle time da spedire
+  //instance->mc.obj.mlt= path_metric;
+  
+  PRINTF("CYCLE_TIME_RPL da inviare = %u \n", instance->mc.node_cycle_time);
+
+/**  The Maximum Lifetime objective function: this OF utilizes the differents CYCLE_TIME of node's neighbors to increase the network lifetime.
+     This idea is based on work of Riccardo Monica*/
 #else
 
 #error "Unsupported RPL_DAG_MC configured. See rpl.h."

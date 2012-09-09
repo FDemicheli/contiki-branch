@@ -50,6 +50,6 @@ random_rand(void)
 /* In gcc int rand() uses RAND_MAX and long random() uses RANDOM_MAX=0x7FFFFFFF */
 /* RAND_MAX varies depending on the architecture */
 
-  return (unsigned short)rand();
+  return (unsigned short)rand(); //rand() va da 0 -> +65,535 x def di unsigned short
 }
 /*---------------------------------------------------------------------------*/

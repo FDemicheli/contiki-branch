@@ -68,6 +68,8 @@ enum energest_type { //sono interi
   ENERGEST_TYPE_MAX
 };
 
+/**ENERGEST_CONF_LEVELDEVICE_LEVELS = It is suitable when a device has several energy levels. An example of its use is when changing 
+                                      radio transmission power*/
 void energest_init(void);
 unsigned long energest_type_time(int type);
 #ifdef ENERGEST_CONF_LEVELDEVICE_LEVELS

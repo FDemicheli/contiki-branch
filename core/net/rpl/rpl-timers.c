@@ -82,20 +82,30 @@ static void
 new_dio_interval(rpl_instance_t *instance) //implementa il trickle algorithm. Calcola il tempo t
 {
   uint32_t time;
+  //unsigned short prova;
 
   /* TODO: too small timer intervals for many cases */
   //1UL = 1 unsigned long int
+  //PRINTF("instance->dio_intcurrent = %u\n",instance->dio_intcurrent);
   time = 1UL << instance->dio_intcurrent;
-
+  /*PRINTF("TIME = %lu\n",time);*////In pratica ottengo 2^dio_intcurrent
   /* Convert from milliseconds to CLOCK_TICKS. */
   time = (time * CLOCK_SECOND) / 1000;
-
+ //   PRINTF("time ticks = %lu\n",time);
   instance->dio_next_delay = time; /* dio_next_delay = delay for completion of DIO interval */
 
   /* random number between I/2 and I: viene generato t */
-  time = time >> 1;
+  time = time >> 1; ///viene preso time in CLOCK_TICKS e diviso per 2
+  //PRINTF("time >> 1 = %lu\n",time);
+ 
+  /*Se invece facessi
+  time = time << 1;
+  PRINTF("time << 1 = %lu\n",time);viene preso time in CLOCK_TICKS e moltiplicato per 2
+  */
+  
+  //prova = random_rand()%10;
+  //PRINTF("prova = %u\n", prova);  
   time += (time * random_rand()) / RANDOM_RAND_MAX;
-
   /*
    * The intervals must be equally long among the nodes for Trickle to
    * operate efficiently. Therefore we need to calculate the delay between

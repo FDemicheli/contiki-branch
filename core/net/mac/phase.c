@@ -85,6 +85,7 @@ struct phase_queueitem {
 MEMB(queued_packets_memb, struct phase_queueitem, PHASE_QUEUESIZE);
 
 #define DEBUG 0
+//#define DEBUG 1 ///to print
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -194,7 +195,7 @@ phase_update(const struct phase_list *list,
   }
 
   // Modification by RMonica
-  neighbor_info_other_source_metric_update(neighbor, 1); // notify change to RPL
+//  neighbor_info_other_source_metric_update(neighbor, 1); // notify change to RPL
 }
 /*---------------------------------------------------------------------------*/
 /* Function added by RMonica
@@ -212,7 +213,7 @@ cycle_time_update(const struct phase_list *list,
   if(e != NULL) {
     if (e->cycle_time != cycle_time) {
       e->cycle_time = cycle_time;
-      neighbor_info_other_source_metric_update(neighbor, 1); // notify change to RPL
+      //neighbor_info_other_source_metric_update(neighbor, 1); // notify change to RPL
     }
   }
   else {
@@ -227,7 +228,7 @@ cycle_time_update(const struct phase_list *list,
     init_single_phase(e);
     e->cycle_time = cycle_time; // we only know the cycle time
     list_push(*list->list, e);
-    neighbor_info_other_source_metric_update(neighbor, 1); // notify change to RPL
+   // neighbor_info_other_source_metric_update(neighbor, 1); // notify change to RPL
   }
 }
 /*---------------------------------------------------------------------------*/
