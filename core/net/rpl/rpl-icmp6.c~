@@ -64,8 +64,8 @@
 #include <limits.h>
 #include <string.h>
 
-//#define DEBUG DEBUG_NONE
-#define DEBUG DEBUG_PRINT
+#define DEBUG DEBUG_NONE
+//#define DEBUG DEBUG_PRINT
 
 #include "net/uip-debug.h"
 
@@ -326,15 +326,15 @@ dio_input(void) /** cosa succede alla ricezione di un DIO  */
       dio.mc.aggr = (buffer[i + 4] >> 4) & 0x3;
       dio.mc.prec = buffer[i + 4] & 0xf;
       
-#if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY) || (RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY)
+//#if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY) || (RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY)
       dio.mc.node_cycle_time = get16(buffer, i + 5);
   //PRINTF("DIO_INPUT: mc.node_cycle_time ricevuto = %u\n", dio.mc.node_cycle_time);///viene rx il cycle time del nodo che ha inviato il DIO    
-#endif
+//#endif
 
-#if RPL_DAG_MC == RPL_DAG_MC_MLT     
+/*#if RPL_DAG_MC == RPL_DAG_MC_MLT     
       dio.mc.pref_parent = get16(buffer, i + 5);
   //    PRINTF("DIO_INPUT: pp = %u\n", dio.mc.pref_parent);
-#endif
+#endif*/
 
       dio.mc.length = buffer[i + 7];
 
