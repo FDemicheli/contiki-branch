@@ -87,7 +87,7 @@ extern struct compower_activity compower_idle_activity;
 void compower_init(void);
 
 /**
- * \brief      Accumulate power contumption for a communication activity
+ * \brief      Accumulate power consumption for a communication activity
  * \param a    A pointer to an activity structure.
  *
  *             This function accumulates power consumption information

@@ -103,7 +103,9 @@ struct rpl_metric_container {
   uint8_t prec;//indica la precedenza dell'oggetto metrica di routing risp agli altri oggetti. 0 è la precedenza piu alta
   uint8_t length;//def la lunghezza dell'oggetto metrica di routing
   /* field added by RMonica */
-  uint16_t node_cycle_time; //also for MLT. Contain the node cycle time
+  uint16_t node_cycle_time; //Contain the node cycle time
+  /* field added by FDemicheli */
+  uint16_t pref_parent; ///Il nodo annuncia il suo PP
   union metric_object {
     struct rpl_metric_object_energy energy;  
     uint16_t etx;
@@ -201,7 +203,7 @@ struct rpl_of {
                                                                 //con parametri (rpl_parent_t *, rpl_parent_t *)
   rpl_dag_t *(*best_dag)(rpl_dag_t *, rpl_dag_t *);
   rpl_rank_t (*calculate_rank)(rpl_parent_t *, rpl_rank_t);
-  void (*update_metric_container)( rpl_instance_t *);
+  void (*update_metric_container)( rpl_instance_t *);   
   rpl_ocp_t ocp;
 };
 typedef struct rpl_of rpl_of_t;

@@ -104,7 +104,7 @@ struct hdr {
 //#ifdef CONTIKIMAC_CONF_CYCLE_TIME
 //#define CYCLE_TIME (CONTIKIMAC_CONF_CYCLE_TIME)
 //#else
-//#define CYCLE_TIME (RTIMER_ARCH_SECOND / NETSTACK_RDC_CHANNEL_CHECK_RATE) ///wake-up interval = 125ms = 8Hz
+//#define CYCLE_TIME (RTIMER_ARCH_SECOND / NETSTACK_RDC_CHANNEL_CHECK_RATE)
 //#endif
 //CYCLE_TIME = 4096 = 32768/8: è il periodo di DUTY CYCLE -->nel caso di default
 ///macro RTIMER_ARCH_SECOND represent the number of ticks per second
@@ -163,7 +163,7 @@ static int is_receiver_awake = 0;
    of the channel with CCA_COUNT_MAX_TX consecutive CCAs */
 #define CCA_COUNT_MAX_TX                   6
 
-/* CCA_CHECK_TIME is the time it takes to perform a CCA check*/ ///durata di un CCA
+/* CCA_CHECK_TIME is the time it takes to perform a CCA check*/ ///durata di un CCA. Vale 4. Sono rtimer ticks??
 /* Note this may be zero. AVRs have 7612 ticks/sec, but block until cca is done */
 #define CCA_CHECK_TIME                     RTIMER_ARCH_SECOND / 8192  /**1/8192 = 122us*/
 
@@ -176,7 +176,7 @@ static int is_receiver_awake = 0;
 #endif
 ///CCA_CHECK_TIME + CCA_SLEEP_TIME = 0.622ms = periodo di un CCA
 /* CHECK_TIME is the total time it takes to perform CCA_COUNT_MAX 
-CCAs. */ ///tempo x eseguire i due CCA 
+CCAs. */ ///tempo x eseguire i due CCA. Vale 40. Sono rtimer ticks?? 
 #define CHECK_TIME                         (CCA_COUNT_MAX * (CCA_CHECK_TIME + CCA_SLEEP_TIME)) /**1.24ms*/
 
 /* CHECK_TIME_TX is the total time it takes to perform CCA_COUNT_MAX_TX
@@ -415,10 +415,10 @@ does not control the transmission*/
   PT_BEGIN(&pt);
 
 #if SYNC_CYCLE_STARTS
-/*<<<<<<< HEAD
+/*
   sync_cycle_start = RTIMER_NOW();
 #else
-=======*/
+*/
 #if PRECISE_SYNC_CYCLE_STARTS
   sync_cycle_start = RTIMER_NOW();
 #endif
@@ -426,13 +426,12 @@ does not control the transmission*/
 #endif
 
 #if !(SYNC_CYCLE_STARTS && PRECISE_SYNC_CYCLE_STARTS)
-//>>>>>>> pippo
   cycle_start = RTIMER_NOW();
 #endif
 
   while(1) {
     static uint8_t packet_seen;
-    static rtimer_clock_t t0;
+    static rtimer_clock_t t0; //t1;
     static uint8_t count;
     //PRINTF("RTIMER_ARCH_SECOND = %u\n",RTIMER_ARCH_SECOND);
     //PRINTF("NETSTACK_RDC_CHANNEL_CHECK_RATE = %d",NETSTACK_RDC_CHANNEL_CHECK_RATE);
@@ -444,7 +443,7 @@ does not control the transmission*/
        sync_cycle_phase = 0;
        sync_cycle_start += RTIMER_ARCH_SECOND;
        cycle_start = sync_cycle_start;
-/*<<<<<<< HEAD
+/*
     } 
     else {
 #if (RTIMER_ARCH_SECOND * NETSTACK_RDC_CHANNEL_CHECK_RATE) > 65535
@@ -456,7 +455,7 @@ does not control the transmission*/
 #else
     cycle_start += CYCLE_TIME;
 #endif
-=======*/
+*/
     } else {
 #if (RTIMER_ARCH_SECOND * CYCLE_RATE) > 65535
        cycle_start = sync_cycle_start + (((unsigned long)sync_cycle_phase*RTIMER_ARCH_SECOND))/CYCLE_RATE;
@@ -465,7 +464,7 @@ does not control the transmission*/
 #endif
     }
 #else  /* if !PRECISE_SYNC_CYCLE_STARTS */ ///CYCLE_TIME non è potenza di 2
-    PRINTF("entro nel codice di monica --> CYCLE_TIME non e' potenza di 2\n");
+   // PRINTF("entro nel codice di monica --> CYCLE_TIME non e' potenza di 2\n");
     if ((++sync_cycle_phase) >= CYCLE_RATE) {
       sync_cycle_phase = 0;
       }
@@ -477,8 +476,9 @@ does not control the transmission*/
 #else  /* if !SYNC_CYCLE_STARTS */ ///CYCLE_TIME è potenza di 2
     PRINTF("CYCLE_TIME è potenza di 2\n");
     cycle_start += CYCLE_TIME;
+    PRINTF("CYCLE_START = %u\n", cycle_start);
 #endif /* SYNC_CYCLE_STARTS */
-//>>>>>>> pippo
+//
 
     packet_seen = 0;
 
@@ -486,6 +486,8 @@ does not control the transmission*/
       t0 = RTIMER_NOW();
       if(we_are_sending == 0 && we_are_receiving_burst == 0) {
         powercycle_turn_radio_on();
+	/*t1 = RTIMER_NOW();
+	PRINTF("RADIO ON: t1 = %u\n", t1);*/
         /* Check if a packet is seen in the air. If so, we keep the
              radio on for a while (LISTEN_TIME_AFTER_PACKET_DETECTED) to
              be able to receive the packet. We also continuously check
@@ -497,6 +499,8 @@ does not control the transmission*/
           break;
         }
         powercycle_turn_radio_off();
+	/*t1 = RTIMER_NOW();
+	PRINTF("RADIO OFF: t1 = %u\n", t1);*/
       }
       schedule_powercycle_fixed(t, RTIMER_NOW() + CCA_SLEEP_TIME);
       PT_YIELD(&pt);
@@ -639,14 +643,14 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
   packetbuf_set_addr(PACKETBUF_ADDR_SENDER, &rimeaddr_node_addr);
   if(rimeaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_RECEIVER), &rimeaddr_null)) {
     is_broadcast = 1;
-  //  PRINTDEBUG("contikimac: send broadcast\n");
+    PRINTDEBUG("contikimac: send broadcast\n");
 
     if(broadcast_rate_drop()) {
       return MAC_TX_COLLISION;
     }
   } else {
 #if UIP_CONF_IPV6
-  /*  PRINTDEBUG("contikimac: send unicast to %02x%02x:%02x%02x:%02x%02x:%02x%02x\n",
+    PRINTDEBUG("contikimac: send unicast to %02x%02x:%02x%02x:%02x%02x:%02x%02x\n",
                packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[0],
                packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[1],
                packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[2],
@@ -654,7 +658,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
                packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[4],
                packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[5],
                packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[6],
-               packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[7]);*/
+               packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[7]);
 #else /* UIP_CONF_IPV6 */
     PRINTDEBUG("contikimac: send unicast to %u.%u\n",
                packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[0],
@@ -745,7 +749,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
      instread. */
   if(NETSTACK_RADIO.receiving_packet() || NETSTACK_RADIO.pending_packet()) {
     we_are_sending = 0;
-//<<<<<<< HEAD
+
    /* PRINTF("contikimac: collision receiving %d, pending %d\n",
            NETSTACK_RADIO.receiving_packet(), NETSTACK_RADIO.pending_packet());*/
 //=======
@@ -781,6 +785,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
     for(i = 0; i < CCA_COUNT_MAX_TX; ++i) {
       t0 = RTIMER_NOW();
       on();
+            //PRINTF("t0 on = %u\n", t0);
 #if CCA_CHECK_TIME > 0
       while(RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + CCA_CHECK_TIME)) { }
 #endif
@@ -791,6 +796,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
       }
       off();
       t0 = RTIMER_NOW();
+     // PRINTF("t0 off = %u\n", t0);
       while(RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + CCA_SLEEP_TIME)) { }
     }
   }
@@ -798,7 +804,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
   if(collisions > 0) {
     we_are_sending = 0;
     off();
-    //PRINTF("contikimac: collisions before sending\n");
+    PRINTF("contikimac: collisions before sending\n");
     contikimac_is_on = contikimac_was_on;
     return MAC_TX_COLLISION;
   }
@@ -807,8 +813,9 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
 #if !RDC_CONF_HARDWARE_ACK
   if(!is_broadcast) {
   /* Turn radio on to receive expected unicast ack.
-      Not necessary with hardware ack detection, and may trigger an unnecessary cca or rx cycle */	 
+      Not necessary with hardware ack detection, and may trigger an unnecessary cca or rx cycle */	
      on();
+     PRINTF("ON x rx ACK\n");
   }
 #endif
 
@@ -835,6 +842,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
       int ret;
 
       txtime = RTIMER_NOW();
+     // PRINTF("txtime = %u\n", txtime);
       ret = NETSTACK_RADIO.transmit(transmit_len);
 
 #if RDC_CONF_HARDWARE_ACK
@@ -843,6 +851,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
         if(!is_broadcast) {
           got_strobe_ack = 1;
           encounter_time = txtime;
+	  //PRINTF("encounter_time if RDC_CONF_HARDWARE_ACK = %u\n", encounter_time);//no print
           break;
         }
       } else if (ret == RADIO_TX_NOACK) {
@@ -868,6 +877,7 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
         if(len == ACK_LEN && seqno == ackbuf[ACK_LEN-1]) {
           got_strobe_ack = 1;
           encounter_time = txtime;
+	  //PRINTF("encounter_time else = %u\n", encounter_time);//no print
           break;
         } else {
        //   PRINTF("contikimac: collisions while sending\n");
@@ -880,21 +890,20 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
 
   off();
 
- /* PRINTF("contikimac: send (strobes=%u, len=%u, %s, %s), done\n", strobes,
+  PRINTF("contikimac: send (strobes=%u, len=%u, %s, %s), done\n", strobes,
          packetbuf_totlen(),
          got_strobe_ack ? "ack" : "no ack",
-         collisions ? "collision" : "no collision");*/
+         collisions ? "collision" : "no collision");
 
 #if CONTIKIMAC_CONF_COMPOWER
   /* Accumulate the power consumption for the packet transmission. */
   compower_accumulate(&current_packet);
-
+  //PRINTF("compower_accumulate = %lu\n", current_packet.transmit);
   /* Convert the accumulated power consumption for the transmitted
      packet to packet attributes so that the higher levels can keep
      track of the amount of energy spent on transmitting the
      packet. */
   compower_attrconv(&current_packet);
-
   /* Clear the accumulated power consumption so that it is ready for
      the next packet. */
   compower_clear(&current_packet);
@@ -915,10 +924,10 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr, struct rdc_buf_
   }
 
 #if WITH_PHASE_OPTIMIZATION
-
+  
   if(is_known_receiver && got_strobe_ack) {
- /*   PRINTF("no miss %d wake-ups %d\n", packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[0],
-           strobes);*/
+    PRINTF("no miss %d wake-ups %d\n", packetbuf_addr(PACKETBUF_ADDR_RECEIVER)->u8[0],
+           strobes);
   }
 
   if(!is_broadcast) {
@@ -1038,7 +1047,7 @@ rtimer_cycle_time_t contikimac_get_average_delay_for_routing(const rimeaddr_t * 
 }
 /*---------------------------------------------------------------------------*/
 static void
-input_packet(void)
+input_packet(void)//packet reception
 {
   static struct ctimer ct;
   if(!we_are_receiving_burst) {

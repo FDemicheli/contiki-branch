@@ -1,0 +1,25 @@
+Riunione 28 agosto 2012
+
+Fabio, Pietro
+
+A) loop potenziale: tecnica per evitare che si formi il loop, quando un DIO non viene ricevuto (dovrebbe essere risolto automaticamente al punto (H)).
+Si può introdurre una metrica globale (tempo di vita massimo).
+
+B) cambiare nomi delle variabili (p1_nodo, ecc)
+   *fatto
+C) leggibilità del codice. Evidenziare tutte le parti modificate.
+   *fatto
+D) modificare i file rpl già presenti senza creare nuovi file.
+   *fatto
+E) testare scenario con 2 cycle time e topologia regolare (vedi Monica), per confrontare le diverse configurazioni del DAG.
+   * fatto e commento in note.
+F) correggere il calcolo del rank (uguale a Monica).
+   * fatto
+G) caricare codice su github
+
+H) IMPORTANTE: ogni nodo include 2 informazioni nel DIO: il proprio cycle time, il tempo di vita più corto che si incontra se si sceglie lui come padre (risalendo verso il sink).
+  Quando un nodo riceve un DIO da un altro nodo:
+   1. calcola il proprio tempo di vita (usando il cycle time, bisogna definire il tempo di vita)
+   2. confronta il tempo di vita calcolato al punto (1) con quello annunciato nel DIO.
+   3. Tra tutti i possibili nodi padre, sceglie quello con tempo di vita più lungo. A parità di tempo di vita (cioè ci sono 2 o più possibili padri con uguale tempo di vita), viene scelto il padre con cycle time piu lungo.
+   4. Il nodo invia un DIO annunciando il tempo di vita massimo calcolato al punto (2).

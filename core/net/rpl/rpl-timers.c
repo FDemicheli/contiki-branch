@@ -134,7 +134,7 @@ new_dio_interval(rpl_instance_t *instance) //implementa il trickle algorithm. Ca
   instance->dio_counter = 0;//il contatore c viene resettato a 0 xchè all'inizio di un nuovo intervallo deve essere 0
   /* schedule the timer */
   //Al termine del tempo t, viene chiamata la funzione handle_dio_timer
-  PRINTF("RPL: Scheduling DIO timer %lu ticks in future (Interval)\n", time); 
+  //PRINTF("RPL: Scheduling DIO timer %lu ticks in future (Interval)\n", time); 
   
   ctimer_set(&instance->dio_timer, time, &handle_dio_timer, instance);
   
@@ -154,13 +154,13 @@ handle_dio_timer(void *ptr)
 
   instance = (rpl_instance_t *)ptr; // converte il puntatore ptr di tipo void, in un puntatore alla struct rpl_instance_t
 
-  PRINTF("RPL: DIO Timer triggered\n");//Il timer viene attivato all'inizio dell'intervallo, che corrisponde a Imin
+  //PRINTF("RPL: DIO Timer triggered\n");//Il timer viene attivato all'inizio dell'intervallo, che corrisponde a Imin
   //PRINTF("dio_send_ok = %lu\n", dio_send_ok);
   if(!dio_send_ok) { //if(dio_send_ok == 0)
     if(uip_ds6_get_link_local(ADDR_PREFERRED) != NULL) {
       dio_send_ok = 1;
     } else {
-      PRINTF("RPL: Postponing DIO transmission since link local address is not ok\n");
+    //  PRINTF("RPL: Postponing DIO transmission since link local address is not ok\n");
       ctimer_set(&instance->dio_timer, CLOCK_SECOND, &handle_dio_timer, instance);
       return;
     }
@@ -186,8 +186,8 @@ handle_dio_timer(void *ptr)
     }
     
     instance->dio_send = 0; //deve essere messo a 0 xchè il tempo è finito
-    PRINTF("RPL: Scheduling DIO timer %lu ticks in future (sent)\n",
-           instance->dio_next_delay);
+   /* PRINTF("RPL: Scheduling DIO timer %lu ticks in future (sent)\n",
+           instance->dio_next_delay);*/
     //Il DIO viene inviato al termine dell'intervallo di tempo   
     ctimer_set(&instance->dio_timer, instance->dio_next_delay, handle_dio_timer, instance);
     
@@ -197,7 +197,7 @@ handle_dio_timer(void *ptr)
     /* check if we need to double interval x raggiungere il valore di Imax */
     if(instance->dio_intcurrent < instance->dio_intmin + instance->dio_intdoubl) {
       instance->dio_intcurrent++;
-      PRINTF("RPL: DIO Timer interval doubled %d\n", instance->dio_intcurrent);
+      //PRINTF("RPL: DIO Timer interval doubled %d\n", instance->dio_intcurrent);
     }
     new_dio_interval(instance);
   }
@@ -236,7 +236,7 @@ handle_dao_timer(void *ptr)
   instance = (rpl_instance_t *)ptr;
 
   if(!dio_send_ok && uip_ds6_get_link_local(ADDR_PREFERRED) == NULL) {
-    PRINTF("RPL: Postpone DAO transmission\n");
+   // PRINTF("RPL: Postpone DAO transmission\n");
     ctimer_set(&instance->dao_timer, CLOCK_SECOND, handle_dao_timer, instance);
     return;
   }

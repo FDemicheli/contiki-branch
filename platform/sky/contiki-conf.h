@@ -133,11 +133,14 @@
 #define UIP_CONF_LLH_LEN                0
 
 #define UIP_CONF_ROUTER                 1
+
+//#define UIP_CONF_IPV6_RPL               0  //ho disabilitato RPL??No, devo cancellare anche rpl-ext-header in Makefile.rpl
+
 #ifndef UIP_CONF_IPV6_RPL
 #define UIP_CONF_IPV6_RPL               1
-#endif /* UIP_CONF_IPV6_RPL */
+#endif /* UIP_CONF_IPV6_RPL*/ 
 
-/* configure number of neighbors and routes */
+/*configure number of neighbors and routes */
 #ifndef UIP_CONF_DS6_NBR_NBU
 #define UIP_CONF_DS6_NBR_NBU     20
 #endif /* UIP_CONF_DS6_NBR_NBU */
@@ -150,6 +153,7 @@
 #define UIP_CONF_ND6_RETRANS_TIMER      10000
 
 #define UIP_CONF_IPV6                   1
+
 #ifndef UIP_CONF_IPV6_QUEUE_PKT
 #define UIP_CONF_IPV6_QUEUE_PKT         0
 #endif /* UIP_CONF_IPV6_QUEUE_PKT */

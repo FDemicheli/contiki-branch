@@ -107,6 +107,6 @@ link_metric_t neighbor_info_get_metric(const rimeaddr_t *addr);
  * \param node the node of which the metric change must be simulated
  * \param known if 0, the node will be removed from the list
  */
-//void neighbor_info_other_source_metric_update(const rimeaddr_t * node, int known);
+void neighbor_info_other_source_metric_update(const rimeaddr_t * node, int known);
 
 #endif /* NEIGHBOR_INFO_H */

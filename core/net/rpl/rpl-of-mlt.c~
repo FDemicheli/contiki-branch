@@ -1,0 +1,73 @@
+
+
+static rpl_parent_t *
+best_parent(rpl_parent_t *p1, rpl_parent_t *p2)///deve selezionare il nodo con il cycle time minore
+{
+  rpl_dag_t *dag;
+  
+  
+  
+  dag = p1->dag; /* Both parents must be in the same DAG. */    
+  
+  
+  p1 = p1->dag->preferred_parent;
+  
+  pp_cycle_time = p1->mc.obj.mlt;
+  PRINT6ADDR(&dag->preferred_parent->addr);
+  PRINTF(" :CYCLE_TIME = %u\n",pp_cycle_time);
+  
+  dio_sender_cycle_time =  p2->mc.obj.mlt; ///cycle time del dio_sender . Lo legge se abilito update_metric_container
+  PRINT6ADDR(&p2->addr);
+  PRINTF(" :CYCLE_TIME = %u\n",dio_sender_cycle_time);
+  
+  if(p1 == dag->preferred_parent || p2 == dag->preferred_parent)
+  {
+    if(pp_cycle_time == 0)//Se il DIO sender è il root, deve diventare automaticamente il preferred_parent
+    {
+     return dag->preferred_parent = p1; ///cioè il root, xchè il root è il preferred parent di default
+    }
+    else if(dio_sender_cycle_time == 0)
+    {
+      return dag->preferred_parent = p2;///sempre il root
+    } 
+    else if(pp_cycle_time > dio_sender_cycle_time)
+    {
+     return dag->preferred_parent = p1;
+    }
+  
+    else if(pp_cycle_time < dio_sender_cycle_time)
+    {
+     return dag->preferred_parent = p2;
+    } 
+    else if(pp_cycle_time == dio_sender_cycle_time)///se due nodi hanno lo stesso cycle time, devo scegliere quello col rank minore
+    {
+      //PRINTF("RPL-OF-MLT: p1_node == p2_node\n");
+      if(p1->rank < p2->rank)
+       {
+	 PRINTF("RPL-OF-MLT p1<p2: p1->rank = %d, p2->rank = %d\n",p1->rank, p2->rank);
+          return dag->preferred_parent = p1;
+       }
+      else if(p1->rank > p2->rank)
+       {
+	PRINTF("RPL-OF-MLT p1>p2: p1->rank = %d, p2->rank = %d\n",p1->rank, p2->rank);
+        return dag->preferred_parent = p2;
+       } 
+        else
+	{
+	/*  PRINTF("RPL-OF-MLT. PP: ");
+	  PRINT6ADDR(&dag->preferred_parent->addr);
+	  PRINTF("\n");*/
+	  return dag->preferred_parent;
+	}
+    }
+  }  
+  
+  else
+  {
+      PRINTF("non va una sega\n");   
+  }
+  return 0;
+   
+  
+}
+

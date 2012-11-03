@@ -45,6 +45,10 @@
 #include "sys/ctimer.h"
 #include "net/uip-ds6.h"
 
+/*Modified by FDemicheli
+- line 323: declaration of function   rpl_rank_t get_number_of_hops(rpl_parent_t *);
+*/
+
 /*---------------------------------------------------------------------------*/
 /** \brief Is IPv6 address addr the link-local, all-RPL-nodes
     multicast address? */
@@ -126,7 +130,7 @@
 #else
 #define RPL_MIN_HOPRANKINC          RPL_CONF_MIN_HOPRANKINC
 #endif
-#define RPL_MAX_RANKINC             (7 * RPL_MIN_HOPRANKINC)
+#define RPL_MAX_RANKINC             (7 * RPL_MIN_HOPRANKINC) //7 è il max numero di hop
 
 #define DAG_RANK(fixpt_rank, instance) \
   ((fixpt_rank) / (instance)->min_hoprankinc)
@@ -315,6 +319,7 @@ void rpl_purge_routes(void);
 
 /* Objective function. */
 rpl_of_t *rpl_find_of(rpl_ocp_t);
+
 
 /* Timer functions. */
 void rpl_schedule_dao(rpl_instance_t *);

@@ -1,0 +1,8 @@
+#CONTIKI_SOURCEFILES += rpl.c rpl-dag.c rpl-icmp6.c rpl-timers.c \
+#	 rpl-ext-header.c rpl-of-etx.c
+
+#Senza  rpl-ext-header.c è un altro passo x disabilitare RPL
+CONTIKI_SOURCEFILES += rpl.c rpl-dag.c rpl-icmp6.c rpl-timers.c \
+	  rpl-of-etx.c
+
+#Poi devo commentare CFLAGS+= -DUIP_CONF_IPV6_RPL nel Makefile del border-router e di RPL-udp3

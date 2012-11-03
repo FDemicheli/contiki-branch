@@ -38,6 +38,11 @@
  *         Adam Dunkels <adam@sics.se>
  */
 
+/*Modified by Fabio Demicheli:
+
+- Created an API to transmit the energy consumption of a node to the script rpl-of-etx.c
+**/
+
 #include "contiki.h"
 #include "contiki-lib.h"
 #include "sys/compower.h"
@@ -81,21 +86,18 @@ powertrace_print(char *str)
   uint32_t idle_transmit, idle_listen;
   uint32_t all_idle_transmit, all_idle_listen;
   
-  uint32_t corrente_consumata_cpu_sec, corrente_consumata_lpm_sec, corrente_consumata_transmit_sec, corrente_consumata_listen_sec;
-  static uint32_t energia_consumata_elab, energia_consumata_tot, energia_tot_batteria, energia_residua, resto; 
-  //static uint16_t resto;
-  energia_tot_batteria = 21600000; //in mJ, valore stimato nell'articolo di Piotrowsky (nella cartella energy)
-  //energia_soglia = 6750000; al di sotto di questo valore il nodo muore
   static uint32_t seqno;
 
   uint32_t time, all_time, radio, all_radio;
+
+  //uint32_t energy_consumed_node_mJ;// variable added by FDemicheli
   
   struct powertrace_sniff_stats *s;
 
   energest_flush();
-  ///energest_type_time = ritorna un valore intero. E' un unsigned long ed è espresso in rtimer ticks.
+  ///energest_type_time = return integer value. It is an unsigned long ed is expressed in rtimer ticks.
   ///Remember: to obtain seconds, I have to divide by RTIMER_ARCH_SECOND
-  ///Questi sono i valori di tempo tot, che si sommano ogni volta
+  ///These are the total time values, wich powertrace sum every time
   all_cpu = energest_type_time(ENERGEST_TYPE_CPU);///is high power CPU time
   all_lpm = energest_type_time(ENERGEST_TYPE_LPM);///is low power CPU time. It uses 3% of full power and is activated when no processes 
                                                  ///have run and there are no events pending
@@ -104,45 +106,45 @@ powertrace_print(char *str)
   all_idle_transmit = compower_idle_activity.transmit;///always 0
   all_idle_listen = compower_idle_activity.listen;
   
+  //printf("all_idle_listen = %lu\n",all_idle_listen);
+  //printf("all_transmit = %lu\n", all_transmit);
+  //printf("all_listen = %lu\n",all_listen);
+  
+  //printf("\n");
+  
+ // printf("all_idle_listen in sec = %lu\n",all_idle_listen/RTIMER_ARCH_SECOND);
+  //printf("all_transmit in sec = %lu\n", all_transmit/RTIMER_ARCH_SECOND);
+  //printf("all_listen in sec = %lu\n",all_listen/RTIMER_ARCH_SECOND);
+  
   ///Compute Tm,n = time during which component m has been in state n --> see Powertrace paper page 5
+ 
   ///Current values obtained from Tmote-sky datasheet. Tension V = 3 V.
-  ///Questi sono i valori riferiti alla singola elaborazione, quindi di Tm,n
-  cpu = all_cpu - last_cpu;///the component leave high power CPU state. MCU ON, Radio OFF. Current = 1.8 mA
-  lpm = all_lpm - last_lpm;///the component leave low power CPU state. MCU IDLE, Radio OFF. Current = 0.545 mA
-  transmit = all_transmit - last_transmit;///MCU ON, radio TX. Current = 19.5mA --> 20 mA
-  listen = all_listen - last_listen;///MCU ON, radio RX. Current = 21.8 mA
+  ///CPU = the component leave high power CPU state. MCU ON, Radio OFF. Current = 1.8 mA
+  ///LPM = the component leave low power CPU state. MCU IDLE, Radio OFF. Current = 0.545 mA
+ ///TRANSMIT = MCU ON, radio TX. Current = 19.5mA --> 20 mA
+ ///LISTEN = MCU ON, radio RX. Current = 21.8mA --> 22 mA
+ 
+  cpu = all_cpu - last_cpu;
+  lpm = all_lpm - last_lpm;
+  
+  transmit = all_transmit - last_transmit;
+  listen = all_listen - last_listen;
+  
   idle_transmit = compower_idle_activity.transmit - last_idle_transmit;///always 0
-  idle_listen = compower_idle_activity.listen - last_idle_listen;///in seconds always 0 s, so this time is neglectable
+  idle_listen = compower_idle_activity.listen - last_idle_listen;///What current value for idle_listen??? The same of listen??
   
-  //printf("idle_listen in s = %lu s\n", idle_listen/RTIMER_ARCH_SECOND);
-  /**The energy cost is P= V * I and E = P * Tm.n
-     --> E = V * I * Tm,n = (3 *( 1.8 * cpu + 0.545 * lpm + 20 * transmit + 21.8 * listen))/RTIMER_ARCH_SECOND
+  /** FDemicheli
+  The energy cost is P= V * I and E = P * Tm.n --> from Energest paper
+     --> E = V * I * Tm,n = (3 * 20) * T_transmit + (3 * 22) * T_listen + (3 * ??) * T_idlelisten [mJ]
+     where
+      T_transmit = all_transmit / RTIMER_ARCH_SECOND --> rtimer ticks * sec /rtimer ticks = sec
+      T_listen = all_listen / RTIMER_ARCH_SECOND
+      T_idlelisten = all_idle_listen / RTIMER_ARCH_SECOND
+  
+  The computation is corrects because I multiple (V * mA) * sec = mW * sec = mJ
+  
   */
-
-  //corrente_consumata_cpu_sec = (cpu/RTIMER_ARCH_SECOND) * 1.8; //--> s * mA = T * I
-  corrente_consumata_cpu_sec = (cpu*1.8)/RTIMER_ARCH_SECOND;
-  //corrente_consumata_lpm_sec = (lpm/RTIMER_ARCH_SECOND) * 0.545;
-  corrente_consumata_lpm_sec = (lpm*0.545)/RTIMER_ARCH_SECOND;
-  //corrente_consumata_transmit_sec = (transmit/RTIMER_ARCH_SECOND) * 20;
-  corrente_consumata_transmit_sec = (transmit*20)/RTIMER_ARCH_SECOND;
-  //corrente_consumata_listen_sec = (listen/RTIMER_ARCH_SECOND) * 21.8;
-  corrente_consumata_listen_sec = (listen*21.8)/RTIMER_ARCH_SECOND;
   
-  energia_consumata_elab = (3 * (corrente_consumata_cpu_sec + corrente_consumata_lpm_sec + corrente_consumata_transmit_sec 
-                               + corrente_consumata_listen_sec));// --> mW * s = mJ
-  
-  energia_consumata_tot += energia_consumata_elab;
-  energia_residua = energia_tot_batteria - energia_consumata_tot;
-  
-  printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
-  //printf("energia_consumata_elab = %lu mJ\n", energia_consumata_elab);
-  printf("energia_consumata_tot = %lu mJ\n", energia_consumata_tot);
-  printf("energia_residua = %lu mJ\n",energia_residua);
-  //printf("energia_residua = %d mJ\n",(uint16_t)energia_residua);
-  resto =  ((100*energia_residua)% energia_tot_batteria)/1000; ///è di fatto mlt. Lo uso come parametro additivo x la mia metrica
-    //resto = energia_residua % energia_tot_batteria;
-    printf("mlt = %lu\n",resto);
-    printf("(uint16_t)mlt = %d\n",(uint16_t)resto);
   ///The same values as above
   last_cpu = energest_type_time(ENERGEST_TYPE_CPU);
   last_lpm = energest_type_time(ENERGEST_TYPE_LPM);
@@ -151,22 +153,18 @@ powertrace_print(char *str)
   last_idle_listen = compower_idle_activity.listen;
   last_idle_transmit = compower_idle_activity.transmit;///always 0
   
-  //printf("last_idle_listen = %lu\n", last_idle_listen);
-  
   radio = transmit + listen;
   time = cpu + lpm;
   all_time = all_cpu + all_lpm;
   all_radio = energest_type_time(ENERGEST_TYPE_LISTEN) +
     energest_type_time(ENERGEST_TYPE_TRANSMIT);
+     
+  //energy_consumed_node_mJ = 3 * 20 * (all_transmit/RTIMER_ARCH_SECOND) + 3 * 22 * (all_listen / RTIMER_ARCH_SECOND);
+                             
+  //printf("energy_consumed_node_mJ = %lu\n",energy_consumed_node_mJ);
+  
     
-   //printf("all_cpu = %lu\n", all_cpu);
-   //printf("cpu = all_cpu - last_cpu = %lu\n", cpu);
-   //printf("cpu = %lu\n", cpu);
-   //printf("cpu in secondi = %lu\n", cpu/RTIMER_ARCH_SECOND);
-   //printf("last_cpu = %lu\n", last_cpu);
-   printf("**************************************************************************************************************************\n");
-
-/*  printf("%s %lu P %d.%d %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu (radio %d.%02d%% / %d.%02d%% tx %d.%02d%% / %d.%02d%% listen %d.%02d%% / %d.%02d%%)\n",
+ /* printf("%s %lu P %d.%d %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu (radio %d.%02d%% / %d.%02d%% tx %d.%02d%% / %d.%02d%% listen %d.%02d%% / %d.%02d%%)\n",
          str,
          clock_time(), rimeaddr_node_addr.u8[0], rimeaddr_node_addr.u8[1], seqno,
          all_cpu, all_lpm, all_transmit, all_listen, all_idle_transmit, all_idle_listen,
@@ -192,8 +190,8 @@ powertrace_print(char *str)
 
   for(s = list_head(stats_list); s != NULL; s = list_item_next(s)) {
 
-//#if ! UIP_CONF_IPV6
-    /*printf("%s %lu SP %d.%d %lu %u %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu (channel %d radio %d.%02d%% / %d.%02d%%)\n",
+#if ! UIP_CONF_IPV6
+   /* printf("%s %lu SP %d.%d %lu %u %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu (channel %d radio %d.%02d%% / %d.%02d%%)\n",
            str, clock_time(), rimeaddr_node_addr.u8[0], rimeaddr_node_addr.u8[1], seqno,
            s->channel,
            s->num_input, s->input_txtime, s->input_rxtime,
@@ -215,8 +213,8 @@ powertrace_print(char *str)
                           (s->last_input_rxtime + s->last_input_txtime +
                            s->last_output_rxtime + s->last_output_txtime))) /
                  radio));*/
-/*#else
-    printf("%s %lu SP %d.%d %lu %u %u %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu (proto %u(%u) radio %d.%02d%% / %d.%02d%%)\n",
+#else
+  /*  printf("%s %lu SP %d.%d %lu %u %u %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu (proto %u(%u) radio %d.%02d%% / %d.%02d%%)\n",
            str, clock_time(), rimeaddr_node_addr.u8[0], rimeaddr_node_addr.u8[1], seqno,
            s->proto, s->channel,
            s->num_input, s->input_txtime, s->input_rxtime,
@@ -237,8 +235,8 @@ powertrace_print(char *str)
                           s->output_rxtime + s->output_txtime -
                           (s->last_input_rxtime + s->last_input_txtime +
                            s->last_output_rxtime + s->last_output_txtime))) /
-                 radio));
-#endif*/
+                 radio));*/
+#endif
     s->last_input_txtime = s->input_txtime;
     s->last_input_rxtime = s->input_rxtime;
     s->last_output_txtime = s->output_txtime;
@@ -247,6 +245,27 @@ powertrace_print(char *str)
   }
   seqno++;
 }
+
+
+/*-------------------------------------------------------------------------------------------------------------------------*/
+//Function added by Fabio Demicheli. Declared in sys/energest.h
+uint16_t 
+energest_get_current_energy_consumption()
+{ 
+  uint32_t energy_consumed_node_mJ;
+  uint32_t all_transmit, all_listen;
+  energest_flush();
+  all_transmit = energest_type_time(ENERGEST_TYPE_TRANSMIT);
+  all_listen = energest_type_time(ENERGEST_TYPE_LISTEN);  
+ // printf("all_transmit_function = %lu\n", all_transmit);
+ // printf("all_listen_function = %lu\n",all_listen);
+  energy_consumed_node_mJ = 3 * 20 * (all_transmit/RTIMER_ARCH_SECOND) + 3 * 22 * (all_listen / RTIMER_ARCH_SECOND);
+  //printf("energy_consumed_node_mJ = %lu\n",energy_consumed_node_mJ);
+  return energy_consumed_node_mJ;
+}
+/*--------------------------------------------------------------------------------------------------------------------------*/
+
+
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(powertrace_process, ev, data)
 {

@@ -1,0 +1,78 @@
+//Questo programma si pone in attesa di un evento.
+//L'evento è provocato dalla pressione del bottone di accensione dei led, e il timer viene attivato
+//una volta che il timer è terminato, si accende alternativamente il led rosso o blu
+
+#include "contiki.h"
+#include "dev/leds.h"
+#include "lib/sensors.h"
+#include "dev/button-sensor.h"
+//#include "sys/timer.h"
+#include "sys/process.h"
+#include <stdio.h>
+
+PROCESS(blink_timer_process, "Blink with timer Example");
+AUTOSTART_PROCESSES(&blink_timer_process);
+
+PROCESS_THREAD(blink_timer_process, ev, data)
+{
+  PROCESS_EXITHANDLER(goto exit);
+  PROCESS_BEGIN();
+  
+  printf("++++++++++++++++++++++++++++\n");
+  printf("+ LESSON 1, SECOND EXERCISE +\n");
+  printf("+ Blink app w/ TIMER +\n");
+  printf("++++++++++++++++++++++++++++\n");
+    
+  SENSORS_ACTIVATE(button_sensor); //attiva il bottone del sensore
+  leds_off(LEDS_ALL);//tutti i led sono spenti
+  printf("+ All leds are off\n");
+  printf("Press the user button to begin\n");
+    
+  while(1){
+     
+     static uint32_t ticks = 0;
+     static uint32_t seconds = 500;
+     static struct etimer et;//struttura usata x dichiarare i timer
+     
+     PROCESS_WAIT_EVENT(); //il processo si pone in attesa di un evento, non importa quale
+     
+     if(ev == sensors_event){ //se l'evento è provocato dal sensore
+       if(data == &button_sensor){ //in particolare dalla pressione del bottone
+           etimer_set(&et,CLOCK_SECOND*seconds);//allora si setta il timer di durata 5 secondi
+	   printf("Button pushed, timer on \n");
+         }
+     
+       }
+     //dopo 5 secondi il timer smette di contare
+     if(etimer_expired(&et)){
+         if(ticks %2 == 0){ //se ticks è pari, si accende il led blue
+	    leds_on(LEDS_BLUE) ;
+	    printf("--- BLUE LED on ---\n");
+         }
+ 
+          if(ticks %2 != 0){ //se ticks è dispari, si accende il led rosso
+	    leds_on(LEDS_RED) ;
+	    printf("--- RED LED on ---\n");
+	  }
+       }
+        
+     etimer_reset(&et);//resetto il timer
+     ticks++;
+     printf("Timer resetted\n");
+     printf("ticks = %d\n", ticks);
+     
+     if(ticks > 500){
+            printf("entro nell'if\n");
+	   // process_exit(&blink_timer_process); //deve essere chiamata da un altro processo?
+	   goto exit;//si puo fare in un altro modo?
+	    printf("mi sono piantato nell'if!!\n");
+     }
+  
+  }
+  
+  exit:
+    leds_off(LEDS_ALL);//Spengo il led
+    printf("Process exit ---- leds off---- \n");
+    
+  PROCESS_END();
+}

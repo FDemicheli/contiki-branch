@@ -58,7 +58,7 @@ compower_init(void)
 }
 /*---------------------------------------------------------------------------*/
 void
-compower_accumulate(struct compower_activity *e) /* Accumulate the power consumption for the packet reception. */ 
+compower_accumulate(struct compower_activity *e) /* Accumulate the power consumption for a communication activity. */ 
 {
   static uint32_t last_listen, last_transmit;
   uint32_t listen, transmit;

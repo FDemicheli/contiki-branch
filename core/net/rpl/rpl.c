@@ -115,14 +115,14 @@ rpl_add_route(rpl_dag_t *dag, uip_ipaddr_t *prefix, int prefix_len,
   rep = uip_ds6_route_lookup(prefix);
   if(rep == NULL) {
     if((rep = uip_ds6_route_add(prefix, prefix_len, next_hop, 0)) == NULL) {
-    //  PRINTF("RPL: No space for more route entries\n");
+      PRINTF("RPL: No space for more route entries\n");
       return NULL;
     }
   } else {
-   /* PRINTF("RPL: Updated the next hop for prefix ");
+    PRINTF("RPL: Updated the next hop for prefix ");
     PRINT6ADDR(prefix);
     PRINTF(" to ");
-    PRINT6ADDR(next_hop);*/
+    PRINT6ADDR(next_hop);
     PRINTF("\n");
     uip_ipaddr_copy(&rep->nexthop, next_hop);
   }
@@ -130,10 +130,10 @@ rpl_add_route(rpl_dag_t *dag, uip_ipaddr_t *prefix, int prefix_len,
   rep->state.lifetime = RPL_LIFETIME(dag->instance, dag->instance->default_lifetime);
   rep->state.learned_from = RPL_ROUTE_FROM_INTERNAL;
 
- /* PRINTF("RPL: Added a route to ");
+  PRINTF("RPL: Added a route to ");
   PRINT6ADDR(prefix);
   PRINTF("/%d via ", prefix_len);
-  PRINT6ADDR(next_hop);*/
+  PRINT6ADDR(next_hop);
   PRINTF("\n");
 
   return rep;
@@ -149,10 +149,10 @@ rpl_link_neighbor_callback(const rimeaddr_t *addr, int known, int etx) //get inf
 
   uip_ip6addr(&ipaddr, 0xfe80, 0, 0, 0, 0, 0, 0, 0);
   uip_ds6_set_addr_iid(&ipaddr, (uip_lladdr_t *)addr);
- /* PRINTF("RPL: Neighbor ");
-  PRINT6ADDR(&ipaddr);
-  PRINTF(" is %sknown. ETX = %u\n", known ? "" : "no longer ", NEIGHBOR_INFO_FIX2ETX(etx));*/
-  PRINTF("\n");
+ // PRINTF("RPL: Neighbor ");
+  //PRINT6ADDR(&ipaddr);
+  //PRINTF(" is %sknown. ETX = %u\n", known ? "" : "no longer ", NEIGHBOR_INFO_FIX2ETX(etx));
+  //PRINTF("\n");
   for(instance = &instance_table[0], end = instance + RPL_MAX_INSTANCES; instance < end; ++instance) {
     if(instance->used == 1 ) {
       parent = rpl_find_parent_any_dag(instance, &ipaddr);
@@ -167,9 +167,9 @@ rpl_link_neighbor_callback(const rimeaddr_t *addr, int known, int etx) //get inf
           instance->of->parent_state_callback(parent, known, etx);
         }
         if(!known) {
-          PRINTF("RPL: Removing parent ");
-          PRINT6ADDR(&parent->addr);
-          PRINTF(" in instance %u because of bad connectivity (ETX %d)\n", instance->instance_id, etx);
+         // PRINTF("RPL: Removing parent ");
+          //PRINT6ADDR(&parent->addr);
+          //PRINTF(" in instance %u because of bad connectivity (ETX %d)\n", instance->instance_id, etx);
           parent->rank = INFINITE_RANK;
         }
       }
@@ -178,8 +178,8 @@ rpl_link_neighbor_callback(const rimeaddr_t *addr, int known, int etx) //get inf
 
   if(!known) {
  //   PRINTF("RPL: Deleting routes installed by DAOs received from ");
-    PRINT6ADDR(&ipaddr);
-    PRINTF("\n");
+  //  PRINT6ADDR(&ipaddr);
+   // PRINTF("\n");
     uip_ds6_route_rm_by_nexthop(&ipaddr);
   }
 }
@@ -193,8 +193,8 @@ rpl_ipv6_neighbor_callback(uip_ds6_nbr_t *nbr)
 
   if(!nbr->isused) {
    // PRINTF("RPL: Removing neighbor ");
-    PRINT6ADDR(&nbr->ipaddr);
-    PRINTF("\n");
+   // PRINT6ADDR(&nbr->ipaddr);
+   // PRINTF("\n");
     for(instance = &instance_table[0], end = instance + RPL_MAX_INSTANCES; instance < end; ++instance) {
       if(instance->used == 1 ) {
         p = rpl_find_parent_any_dag(instance, &nbr->ipaddr);

@@ -72,6 +72,10 @@ enum energest_type { //sono interi
                                       radio transmission power*/
 void energest_init(void);
 unsigned long energest_type_time(int type);
+
+/*Function added by FDemicheli*/
+uint16_t energest_get_current_energy_consumption(); ///This function returns the energy consumed of a node
+
 #ifdef ENERGEST_CONF_LEVELDEVICE_LEVELS
 unsigned long energest_leveldevice_leveltime(int powerlevel);
 #endif

@@ -1,0 +1,68 @@
+ifndef MAKEFILE_POWERTRACE
+MAKEFILE_POWERTRACE = 1
+ifdef LOG
+powertrace-parse:
+#Il comando cat unisce piu file in un unico file tramite ">"
+#il comando "sort" ordina alfabeticamente o numericamente una lista. In questo caso ho "sort -nr", cioè:
+#-n: ordina numericamente, -r: inverte il senso di ordinamento, producendo i risultati a partire dal valore maggiore
+#cat sort permette di leggere il contenuto della lista 
+# sort > nome_file: salva il risultato su nome_file
+#caratt | (pipe): utilizzato per concatenare due o più comandi,cioè per prendere l'output di un comando e inviarlo all'input di un altro comando
+#grep -a: processa un file binario come se fosse di testo
+#grep "P": cerca solo la lettera P
+#grep -a "P": processa il file e cerca la lettera "P"
+#cat $(LOG) | grep: legge il LOG file e il contenuto lo processa grep
+
+	cat $(LOG) | grep -a "P " | $(CONTIKI)/tools/powertrace/parse-power-data > powertrace-data
+	cat $(LOG) | grep -a "P " | $(CONTIKI)/tools/powertrace/parse-node-power | sort -nr > powertrace-node-data
+	cat $(LOG) | $(CONTIKI)/tools/powertrace/parse-sniff-data | sort -n > powertrace-sniff-data
+else #LOG
+powertrace-parse:
+	@echo LOG must be defined to point to the powertrace log file to parse
+endif #LOG
+
+powertrace-plot: powertrace-plot-node powertrace-plot-sniff
+	@gnuplot $(CONTIKI)/tools/powertrace/plot-power || echo gnupot failed
+
+powertrace-plot-sniff:
+	@gnuplot $(CONTIKI)/tools/powertrace/plot-sniff-power || echo gnupot failed
+
+powertrace-plot-node:
+	@gnuplot $(CONTIKI)/tools/powertrace/plot-node-power || echo gnupot failed
+
+powertrace-show:
+	gv powertrace-power.eps
+	gv powertrace-node-power.eps
+	gv powertrace-sniff-power.eps
+
+powertrace-all: powertrace-parse powertrace-plot powertrace-show
+
+powertrace-help:
+	@echo Contiki powertrace is a tool that helps with collecting power data
+	@echo from motes. The data can be collected from a testbed or from a Cooja
+	@echo simulation. The powertrace data consists of lines of text that include
+	@echo the capital letter P followed by a list of numbers that contain the
+	@echo measured time that mote peripherals were switched on.
+	@echo 
+	@echo A powertrace data file can be parsed and plotted with build-in
+	@echo powertrace scripts.
+	@echo 
+	@echo To parse a data file with powertrace data, run:
+	@echo 
+	@echo   make powertrace-parse LOG=logfile
+	@echo 
+	@echo to plot the parsed data, do:
+	@echo 
+	@echo   make powertrace-plot
+	@echo 
+	@echo this produces two files called powertrace-power.eps and
+	@echo powertrace-node-power.eps. To show these files, run:
+	@echo 
+	@echo   make powertrace-show
+	@echo 
+	@echo For convenience, all three above make targets can be combined into
+	@echo one:
+	@echo 
+	@echo   make powertrace-all LOG=logfile
+	@echo 
+endif # MAKEFILE_POWERTRACE

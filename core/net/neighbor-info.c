@@ -59,6 +59,7 @@ static neighbor_info_subscriber_t subscriber_callback;
 static void
 update_metric(const rimeaddr_t *dest, int packet_metric) ///aggiorna la link_metric
 {
+  PRINTF("NEIGHBOR INFO: update_metric\n");
   link_metric_t *metricp;
   link_metric_t recorded_metric, new_metric;
   unsigned long time;
@@ -84,12 +85,14 @@ update_metric(const rimeaddr_t *dest, int packet_metric) ///aggiorna la link_met
     //PRINTF("recorded_metric = %d\n", recorded_metric);
     /// Update the EWMA of the ETX for the neighbor    
     ///etx_update = 0.9 * etx_recorded_until_now + (0.1) * etx_last
+  
     new_metric = ((uint16_t)recorded_metric * ETX_ALPHA +
                (uint16_t)packet_metric * (ETX_SCALE - ETX_ALPHA)) / ETX_SCALE;
-    PRINTF("link_metric con metricp = 16, quindi dopo EWMA vale %d\n", new_metric);
+
+   // PRINTF("link_metric con metricp = 16, quindi dopo EWMA vale %d\n", new_metric);
   }
   //I dati vengono convertiti da un valore di punto fisso a intero:
- /* PRINTF("neighbor-info: ETX changed from %d to %d (packet ETX = %d) %d\n",
+  /*PRINTF("neighbor-info: ETX changed from %d to %d (packet ETX = %d) %d\n",
 	 NEIGHBOR_INFO_FIX2ETX(recorded_metric), // 240/16 = 15
 	 NEIGHBOR_INFO_FIX2ETX(new_metric), // 16/16 = 1 
 	 NEIGHBOR_INFO_FIX2ETX(packet_metric),
@@ -110,11 +113,10 @@ update_metric(const rimeaddr_t *dest, int packet_metric) ///aggiorna la link_met
 /* Function added by RMonica
  * see header (neighbor-info.h) for explanation
  */
-/*
+
 void
 neighbor_info_other_source_metric_update(const rimeaddr_t * node, int known)
 {
-  PRINTF("NEIGHBOR INFO: sono dentro la funct di Monica\n");
   link_metric_t *metricp;
   link_metric_t recorded_metric = NEIGHBOR_INFO_ETX2FIX(ETX_LIMIT);
   metricp = (link_metric_t *)neighbor_attr_get_data(&attr_etx, node);
@@ -127,7 +129,7 @@ neighbor_info_other_source_metric_update(const rimeaddr_t * node, int known)
       subscriber_callback(node, known, recorded_metric);
     }
   }
-}*/
+}
 /*---------------------------------------------------------------------------*/
 static void
 add_neighbor(const rimeaddr_t *addr)
@@ -160,13 +162,9 @@ neighbor_info_packet_sent(int status, int numtx) ///Notify the neighbor informat
   
  packet_metric = numtx; //numtx vale 1
 
-  /*PRINTF("neighbor-info: packet sent to %d.%d, status=%d, metric=%u\n",
+  PRINTF("neighbor-info: packet sent to %d.%d, status=%d, metric=%u\n",
 	dest->u8[sizeof(*dest) - 2], dest->u8[sizeof(*dest) - 1],
-	status, (unsigned)packet_metric);*/
-
-PRINTF("neighbor-info: packet sent to %d.%d, status=%d\n",
-	dest->u8[sizeof(*dest) - 2], dest->u8[sizeof(*dest) - 1],
-	status);
+	status, (unsigned)packet_metric);
 	
   switch(status) {
   case MAC_TX_OK:
@@ -205,10 +203,8 @@ neighbor_info_packet_received(void)
     return;
   }
 
-  PRINTF("neighbor-info: packet received from %d.%d\n",
-	src->u8[sizeof(*src) - 2], src->u8[sizeof(*src) - 1]);
-
   add_neighbor(src);
+
 }
 /*---------------------------------------------------------------------------*/
 int
