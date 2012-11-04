@@ -143,7 +143,7 @@
 
 #define INFINITE_RANK                   0xffff
 
-#define INITIAL_LINK_METRIC		NEIGHBOR_INFO_ETX2FIX(5)
+#define INITIAL_LINK_METRIC		NEIGHBOR_INFO_ETX2FIX(5) //vale 80
 
 /* Represents 2^n ms. */
 /* Default value according to the specification is 3 which
@@ -319,7 +319,6 @@ void rpl_purge_routes(void);
 
 /* Objective function. */
 rpl_of_t *rpl_find_of(rpl_ocp_t);
-
 
 /* Timer functions. */
 void rpl_schedule_dao(rpl_instance_t *);

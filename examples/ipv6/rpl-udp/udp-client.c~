@@ -77,8 +77,8 @@ tcpip_handler(void)
 }
 /*---------------------------------------------------------------------------*/
 static void
-send_packet(void *ptr){}
-/*{
+send_packet(void *ptr)
+{
   static int seq_id;
   char buf[MAX_PAYLOAD_LEN];
 
@@ -88,7 +88,7 @@ send_packet(void *ptr){}
   sprintf(buf, "Hello %d from the client", seq_id);
   uip_udp_packet_sendto(client_conn, buf, strlen(buf),
                         &server_ipaddr, UIP_HTONS(UDP_SERVER_PORT));
-}*/
+}
 /*---------------------------------------------------------------------------*/
 static void
 print_local_addresses(void)

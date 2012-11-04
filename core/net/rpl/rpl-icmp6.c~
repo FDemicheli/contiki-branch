@@ -64,8 +64,8 @@
 #include <limits.h>
 #include <string.h>
 
-#define DEBUG DEBUG_NONE
-//#define DEBUG DEBUG_PRINT
+//#define DEBUG DEBUG_NONE
+#define DEBUG DEBUG_PRINT
 
 #include "net/uip-debug.h"
 
@@ -241,9 +241,9 @@ dio_input(void) /** cosa succede alla ricezione di un DIO  */
   uip_ipaddr_copy(&from, &UIP_IP_BUF->srcipaddr);
 
   /* DAG Information Object */
-/*  PRINTF("RPL: Received a DIO from ");
+  PRINTF("RPL: Received a DIO from ");
   PRINT6ADDR(&from);
-  PRINTF("\n");*/
+  PRINTF("\n");
   
   num_dio_received++;
  // PRINTF("num DIO received = %d\n",num_dio_received);
@@ -275,10 +275,10 @@ dio_input(void) /** cosa succede alla ricezione di un DIO  */
   dio.rank = get16(buffer, i);
   i += 2;
 
- /* PRINTF("RPL: Incoming DIO (id, ver, rank) = (%u,%u,%u)\n",
+  PRINTF("RPL: Incoming DIO (id, ver, rank) = (%u,%u,%u)\n",
          (unsigned)dio.instance_id,
          (unsigned)dio.version, 
-         (unsigned)dio.rank);*/
+         (unsigned)dio.rank);
 
   dio.grounded = buffer[i] & RPL_DIO_GROUNDED;
   dio.mop = (buffer[i]& RPL_DIO_MOP_MASK) >> RPL_DIO_MOP_SHIFT;
@@ -326,28 +326,28 @@ dio_input(void) /** cosa succede alla ricezione di un DIO  */
       dio.mc.aggr = (buffer[i + 4] >> 4) & 0x3;
       dio.mc.prec = buffer[i + 4] & 0xf;
       
-//#if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY) || (RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY)
+#if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY) || (RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY)
       dio.mc.node_cycle_time = get16(buffer, i + 5);
-  //PRINTF("DIO_INPUT: mc.node_cycle_time ricevuto = %u\n", dio.mc.node_cycle_time);///viene rx il cycle time del nodo che ha inviato il DIO    
-//#endif
+  PRINTF("DIO_INPUT: mc.node_cycle_time ricevuto = %u\n", dio.mc.node_cycle_time);///viene rx il cycle time del nodo che ha inviato il DIO    
+#endif
 
-/*#if RPL_DAG_MC == RPL_DAG_MC_MLT     
+#if RPL_DAG_MC == RPL_DAG_MC_MLT     
       dio.mc.pref_parent = get16(buffer, i + 5);
   //    PRINTF("DIO_INPUT: pp = %u\n", dio.mc.pref_parent);
-#endif*/
+#endif
 
       dio.mc.length = buffer[i + 7];
 
       if(dio.mc.type == RPL_DAG_MC_ETX) {
         dio.mc.obj.etx = get16(buffer, i + 8);
-	//PRINTF("RPL: DAG MC: type %u, ETX %u\n",       
+	PRINTF("RPL: DAG MC: type %u, ETX %u\n",       
         //PRINTF("RPL: DAG MC: type %u, flags %u, aggr %u, prec %u, length %u, ETX %u\n",
-	//       (unsigned)dio.mc.type,  
+	       (unsigned)dio.mc.type,  
 	  //     (unsigned)dio.mc.flags, 
 	    //   (unsigned)dio.mc.aggr, 
 	    //   (unsigned)dio.mc.prec, 
 	    //   (unsigned)dio.mc.length, 
-	  //     (unsigned)dio.mc.obj.etx);
+	       (unsigned)dio.mc.obj.etx);
 	 
       } else if(dio.mc.type == RPL_DAG_MC_ENERGY) {
         dio.mc.obj.energy.flags = buffer[i + 8];
@@ -519,21 +519,22 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr) /** cosa succede pri
 #if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY) || (RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY)
     set16(buffer, pos, instance->mc.node_cycle_time);/// node's cycle time 
    // PRINTF("DIO_OUTPUT: mc.node_cycle_time da spedire = %u\n", instance->mc.node_cycle_time);///send the cycle time of the current node
-    pos += 2;
-#endif    
+    pos += 2;    
 
-#if RPL_DAG_MC == RPL_DAG_MC_MLT     
+#elif RPL_DAG_MC == RPL_DAG_MC_MLT     
     ///Provo a inserire il campo PP con queste 3 righe
     set16(buffer, pos, instance->mc.pref_parent);
    // PRINTF("DIO_OUTPUT: preferred_parent = %u\n",instance->mc.pref_parent);
     pos += 2;
+#else
+#error "DIO output: Not supported."    
 #endif
 
     if(instance->mc.type == RPL_DAG_MC_ETX) {
       buffer[pos++] = 2;
       set16(buffer, pos, instance->mc.obj.etx);
       pos += 2;
-     // PRINTF("DIO_OUTPUT: mc.obj.etx = %u\n",instance->mc.obj.etx);      
+      //PRINTF("DIO_OUTPUT: mc.obj.etx = %u\n",instance->mc.obj.etx);      
     } else if(instance->mc.type == RPL_DAG_MC_ENERGY) {
       buffer[pos++] = 2;
       buffer[pos++] = instance->mc.obj.energy.flags;
@@ -549,8 +550,8 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr) /** cosa succede pri
     //  PRINTF("DIO_OUTPUT: energy consumption = %u mJ\n",instance->mc.obj.mlt);
     } 
       else {
-     /* PRINTF("RPL: Unable to send DIO because of unhandled DAG MC type %u\n",
-	(unsigned)instance->mc.type);*/
+      PRINTF("RPL: Unable to send DIO because of unhandled DAG MC type %u\n",
+	(unsigned)instance->mc.type);
       return;
     }
   }
@@ -607,8 +608,8 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr) /** cosa succede pri
   /* Unicast requests get unicast replies! */
   if(uc_addr == NULL) {
     num_dio_sent += RPL_PARENT_COUNT(dag);
- /*   PRINTF("RPL: Sending a multicast-DIO with rank %u\n",
-        (unsigned)instance->current_dag->rank);*/
+    PRINTF("RPL: Sending a multicast-DIO with rank %u\n",
+        (unsigned)instance->current_dag->rank);
     uip_create_linklocal_rplnodes_mcast(&addr);
     uip_icmp6_send(&addr, ICMP6_RPL, RPL_CODE_DIO, pos);
  //   PRINTF("num DIO sent = %d\n",num_dio_sent);    
@@ -654,9 +655,9 @@ dao_input(void)
   uip_ipaddr_copy(&dao_sender_addr, &UIP_IP_BUF->srcipaddr);
 
   /* Destination Advertisement Object */
- /* PRINTF("RPL: Received a DAO from ");
+  PRINTF("RPL: Received a DAO from ");
   PRINT6ADDR(&dao_sender_addr);
-  PRINTF("\n");*/
+  PRINTF("\n");
 
   cont_dao_received++;
  // PRINTF("num DAO rx = %d\n",cont_dao_received);

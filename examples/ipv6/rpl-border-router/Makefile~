@@ -2,10 +2,14 @@ CONTIKI_PROJECT=border-router
 all: $(CONTIKI_PROJECT) 
 
 CONTIKI=../../..
-
+APPS += powertrace
 WITH_UIP6=1
 UIP_CONF_IPV6=1
 CFLAGS+= -DUIP_CONF_IPV6_RPL
+
+## patch different cycle times
+CFLAGS += -DCONTIKIMAC_CONF_CYCLE_RATE=16 -DCONTIKIMAC_CONF_MIN_CYCLE_RATE=5
+# #
 
 #linker optimizations
 SMALL=1
@@ -25,6 +29,7 @@ PROJECT_SOURCEFILES += slip-bridge.c
 #of the slip connection. Large MSS together with low baud rates without flow
 #control will overrun the transmit buffer when the style sheet is requested.
 
+WITH_WEBSERVER=0
 WITH_WEBSERVER=1
 ifeq ($(WITH_WEBSERVER),1)
 CFLAGS += -DWEBSERVER=1

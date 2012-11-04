@@ -59,7 +59,7 @@ static neighbor_info_subscriber_t subscriber_callback;
 static void
 update_metric(const rimeaddr_t *dest, int packet_metric) ///aggiorna la link_metric
 {
-  PRINTF("NEIGHBOR INFO: update_metric\n");
+ // PRINTF("NEIGHBOR INFO: update_metric\n");
   link_metric_t *metricp;
   link_metric_t recorded_metric, new_metric;
   unsigned long time;

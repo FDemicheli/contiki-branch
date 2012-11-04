@@ -77,6 +77,8 @@ static rpl_parent_t *best_parent(rpl_parent_t *, rpl_parent_t *);
 static rpl_dag_t *best_dag(rpl_dag_t *, rpl_dag_t *);
 static rpl_rank_t calculate_rank(rpl_parent_t *, rpl_rank_t);
 
+static int get_number_of_hops(rpl_parent_t *);
+
 /*
  Calculates a rank value using the parent rank and a base rank.  If "parent" is NULL, the objective function selects a default increment
  that is adds to the "base_rank". Otherwise, the OF uses information known  about "parent" to select an increment to the "base_rank".
@@ -122,12 +124,12 @@ calculate_path_metric(rpl_parent_t *p)
     return MAX_PATH_COST * RPL_DAG_MC_ETX_DIVISOR;
   } else {    
     long etx = p->link_metric;//all'inizio vale INITIAL_LINK_METRIC
-    //PRINTF("link_metric in rpl-of-etx = %ld\n", etx);
+   // PRINTF("link_metric in rpl-of-etx = %ld\n", etx);
     etx = (etx * RPL_DAG_MC_ETX_DIVISOR) / NEIGHBOR_INFO_ETX_DIVISOR; //in sostanza: etx = etx * 8
-    /*PRINTF("etx = %lu\n", etx);
-    PRINTF("p->mc.obj.etx = %u\n", p->mc.obj.etx);
-    PRINTF("(uint16_t) etx = %d\n", (uint16_t) etx);
-    PRINTF("p->mc.obj.etx + (uint16_t) etx = %d\n", p->mc.obj.etx + (uint16_t) etx);*/
+   // PRINTF("etx = %lu\n", etx);
+   // PRINTF("p->mc.obj.etx = %u\n", p->mc.obj.etx);
+   // PRINTF("(uint16_t) etx = %d\n", (uint16_t) etx);
+    PRINTF("p->mc.obj.etx + (uint16_t) etx = %d\n", p->mc.obj.etx + (uint16_t) etx);
     return p->mc.obj.etx + (uint16_t) etx;
   }
 #elif RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY // RMonica
@@ -152,7 +154,8 @@ calculate_path_metric(rpl_parent_t *p)
     //PRINTF("PARENT NON CONSUMA\n");
     return p->mc.obj.mlt + energest_get_current_energy_consumption();
   } else {
-    long consumed_energy = energest_get_current_energy_consumption();
+    uint16_t consumed_energy = energest_get_current_energy_consumption();
+    // PRINTF("consumed_energy = %u\n",consumed_energy);
     //Devo andare a leggere il valore di energia consumata del nodo parent
     ///p->mc.obj.mlt; //energy consumption from parent node --> reads from DIO message received    
 //    PRINTF("p->mc.obj.mlt: en_cons_parent = %u\n",p->mc.obj.mlt);
@@ -167,6 +170,56 @@ calculate_path_metric(rpl_parent_t *p)
 
 #endif
 }
+
+static int 
+get_number_of_hops(rpl_parent_t *p) //declared in rpl-private.h line 323
+   {
+       int num_hops;
+       num_hops = 0;
+       num_hops = ((p->rank)/16) -16;
+     return num_hops;
+   }  
+
+static rpl_path_metric_t
+calculate_avg_energy(rpl_parent_t *p)
+ {
+  rpl_path_metric_t p_metric_tot; 
+  
+  rpl_path_metric_t p_metric; 
+  //rpl_rank_t num_hop_1, num_hop_2;
+  
+  int num_hop;
+  num_hop = 0;
+  //rpl_rank_t rank_nodo_1, rank_nodo_2;
+  
+
+  PRINTF("P = "); //--> è il primo nodo nell'insieme dei parent
+  PRINT6ADDR(&p->addr);
+  PRINTF("\n");
+  p_metric_tot = calculate_path_metric(p); //--> qui ho l'energia totale, mi serve la media
+ 
+  
+  PRINTF("p->rank = %u\n", p->rank);
+  
+  num_hop = get_number_of_hops(p);
+  PRINTF("num_hop = %d\n",num_hop);
+  
+  if(num_hop == 0) // allora è il root ed evito la divisione per 0
+  {
+   p_metric = 0;
+//   PRINTF("p1_metric = %u\n", p1_metric);
+  }
+  
+  else
+  {  
+  num_hop += 1;
+///  PRINTF("number_of_hops con p1 = %u\n",num_hop_1);
+  p_metric = p_metric_tot/num_hop; //questa è l'energia media
+ // PRINTF("p1_metric = %u\n", p1_metric);
+  }
+  
+  return p_metric;
+ }
 
 static void
 reset(rpl_dag_t *sag)
@@ -223,6 +276,7 @@ calculate_rank(rpl_parent_t *p, rpl_rank_t base_rank)
       stored otherwise. */
     new_rank = base_rank + rank_increase; ///parent_rank + dipende
     //PRINTF("new rank = base_rank %d + rank_increase %d = %d\n",base_rank, rank_increase, new_rank);
+   // PRINTF("new rank = %u\n",new_rank);
   }
   
   return new_rank;   
@@ -251,22 +305,17 @@ best_parent(rpl_parent_t *p1, rpl_parent_t *p2) //Compares two parents and retur
  
   rpl_path_metric_t p1_metric;
   rpl_path_metric_t p2_metric;
+  
+  int num_hop_1, num_hop_2;
  
-  dag = p1->dag; /* Both parents must be in the same DAG. */
-
+  dag = p1->dag; // Both parents must be in the same DAG. 
 
 #if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY)
   min_diff = RPL_DAG_MC_ETX_DIVISOR / PARENT_SWITCH_THRESHOLD_DIV;//min_diff = 128/2 = 64
 #elif (RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY)
   min_diff = AVG_DELAY_SWITCH_THRESHOLD;//10
 #elif (RPL_DAG_MC == RPL_DAG_MC_MLT)
-  min_diff = 100; 
-/**PROBLEMA 1: all'inizio ho p1_metric = 0, p2_metric = 0, min_diff = 0 e best_parent non sa come fare. Anche se min_diff != 0 non va
-               bene xchè Contiki non supporta i numeri negativi. In questo caso il pp viene cambiato in automatico al DIO sender, in
-               accordo con l'if alla riga 642 nello script rpl-dag.c.
-PROBLEMA 2: se un nodo rx subito il msg dal root, il root ha numero hop = 0, x cui mi viene una divisione per 0 e mi viene
-            p2_metric = 65535.
-*/
+ min_diff = 10; 
 #else
 #error "best_parent: RPL_DAG_MC not supported."
 #endif
@@ -277,18 +326,26 @@ PROBLEMA 2: se un nodo rx subito il msg dal root, il root ha numero hop = 0, x c
   //PRINTF("p1_metric = %u\n", p1_metric);
     
   p2_metric = calculate_path_metric(p2);
-  //PRINTF("p2_metric = %u\n", p2_metric);
+  //PRINTF("p2_metric = %u\n", p2_metric);*/
   
 #elif (RPL_DAG_MC == RPL_DAG_MC_MLT)
 
+ p1_metric = calculate_avg_energy(p1);
+ p2_metric = calculate_avg_energy(p2);
+
+ PRINTF("p1_metric = %u\n", p1_metric);
+ PRINTF("p2_metric = %u\n", p2_metric);
+ 
+/*  rpl_path_metric_t p1_metric_tot; 
+  rpl_path_metric_t p2_metric_tot;
   //rpl_rank_t num_hop_1, num_hop_2;
   
-  static int num_hop_1, num_hop_2;
+  int num_hop_1, num_hop_2;
   
   //rpl_rank_t rank_nodo_1, rank_nodo_2;
   
-  rpl_path_metric_t p1_metric_tot; 
-  rpl_path_metric_t p2_metric_tot;
+ // rpl_path_metric_t p1_metric_tot; 
+ // rpl_path_metric_t p2_metric_tot;
 
   PRINTF("P1 = "); //--> è il primo nodo nell'insieme dei parent
   PRINT6ADDR(&p1->addr);
@@ -305,14 +362,16 @@ PROBLEMA 2: se un nodo rx subito il msg dal root, il root ha numero hop = 0, x c
     
   //rank_nodo_1 = p1->rank; //rank del primo parent
 //  PRINTF("rank_nodo p1 = %u\n", rank_nodo_1);
+  PRINTF("p1->rank = %u\n", p1->rank);
   //num_hop_1 = (rank_nodo_1/16) -16;
-  num_hop_1 = (p1->rank/16) -16;
+  //num_hop_1 = (p1->rank/16) -16;
+  num_hop_1 = get_number_of_hops(p1);
+  PRINTF("num_hop_1 = %d\n",num_hop_1);
   
   if(num_hop_1 == 0) // allora è il root ed evito la divisione per 0
   {
    p1_metric = 0;
    PRINTF("p1_metric = %u\n", p1_metric);
-  // return dag->preferred_parent = p1;
   }
   
   else
@@ -326,12 +385,15 @@ PROBLEMA 2: se un nodo rx subito il msg dal root, il root ha numero hop = 0, x c
  // rank_nodo_2 = p2->rank;
  // PRINTF("rank_nodo p2 = %u\n", rank_nodo_2);
   //num_hop_2 = (rank_nodo_2/16) -16;
-  num_hop_2 = (p2->rank/16) -16;
+  PRINTF("p2->rank = %u\n", p2->rank);
+  //num_hop_2 = (p2->rank/16) -16;
+  num_hop_2 = get_number_of_hops(p2);
+  PRINTF("num_hop_2 = %d\n",num_hop_2);
   
   if(num_hop_2 == 0)
   {//allora è il root
    p2_metric = 0;
-  // PRINTF("p2_metric = %u\n", p2_metric);
+   PRINTF("p2_metric = %u\n", p2_metric);
    //return dag->preferred_parent = p2;
   }
   else
@@ -339,10 +401,10 @@ PROBLEMA 2: se un nodo rx subito il msg dal root, il root ha numero hop = 0, x c
   num_hop_2 += 1;  
 ///  PRINTF("number_of_hops con p2 = %u\n",num_hop_2);
   p2_metric = p2_metric_tot/num_hop_2;
- // PRINTF("p2_metric = %u\n", p2_metric);
+  PRINTF("p2_metric = %u\n", p2_metric);
   }
   
- //PRINTF("rank nodo corrente = %u \n",dag->instance->current_dag->rank); 
+ //PRINTF("rank nodo corrente = %u \n",dag->instance->current_dag->rank); */
  
 ///Da qui scatta la scelta del PP  
 /*
@@ -400,46 +462,38 @@ PROBLEMA 2: se un nodo rx subito il msg dal root, il root ha numero hop = 0, x c
    return dag->preferred_parent = p1;
  }
   */
+#else
+#error "best_parent: RPL_DAG_MC not supported."
 #endif  
 
+ num_hop_1 = get_number_of_hops(p1);
+ num_hop_2 = get_number_of_hops(p2);
 
-
-//if(p1->rank >= p2->rank) {
-
- //if(node_id != p1->mc.pref_parent && node_id != p2->mc.pref_parent) { 
+  if(p1_metric == 0 && p2_metric == 0)
+     return dag-> preferred_parent;
   
+if(num_hop_2 <= num_hop_1)
+ { 
   if(p1 == dag->preferred_parent || p2 == dag->preferred_parent) {
-    
    // Maintain stability of the preferred parent in case of similar ranks.  
+      PRINTF(" p2_metric - min_diff = % d\n", p2_metric - min_diff); 
     if(p1_metric < p2_metric + min_diff &&
        p1_metric > p2_metric - min_diff) {
-   //   PRINTF(" p2_metric + min_diff = % u\n", p2_metric + min_diff);
-   //   PRINTF(" p2_metric - min_diff = % u\n", p2_metric - min_diff); 
+//      PRINTF(" p2_metric + min_diff = % d\n", p2_metric + min_diff);
+ //     PRINTF(" p2_metric - min_diff = % d\n", p2_metric - min_diff); 
    
-      //PRINTF("BEST_PARENT: p1_metric < p2_metric + min_diff &&  p1_metric > p2_metric - min_diff\n");
-      return dag->preferred_parent;
-    }
-    
-  }
-
-  return p1_metric < p2_metric ? p1 : p2;
-//} 
-
-/* PRINTF("BEST_PARENT: sei gia il mio PP\n");
-    //PRINTF("p1->mc.pref_parent = %u\n", p1->mc.pref_parent); 
-    //PRINTF("p2->mc.pref_parent = %u\n", p2->mc.pref_parent);
-    if(node_id == p1->mc.pref_parent)
-	return  p2;
-    else
-	return p1;
-
-}
-
-return p1;*/
+      return dag->preferred_parent; ///vuol dire che si mantiene il PP attuale
+      ///Nel mio caso devo mantenerlo anche se il candidato parent ha en_cons < PP ma rank maggiore del nodo corrente
+    }  
   
+ } 
+//PRINTF("BEST_PARENT: scelgo il minore\n");
+  return p1_metric < p2_metric ? p1 : p2; 
 }
 
-
+  return dag->preferred_parent;
+}
+   
 static void
 update_metric_container(rpl_instance_t *instance)
 {
@@ -454,9 +508,6 @@ update_metric_container(rpl_instance_t *instance)
   instance->mc.node_cycle_time = contikimac_get_cycle_time_for_routing();///node cycle time
   
   dag = instance->current_dag;
-  
-    //long consumed_energy = energest_get_current_energy_consumption();
-    //PRINTF("my consumed energy = %u\n", consumed_energy);
   
    ///NB: queste due righe sono temporanee, mi servono come prova. Quando la metrica sara pronta le devo cancellare
   //instance->mc.obj.mlt = energest_get_current_energy_consumption(); ///questa è l'energia del nodo che rx il DIO, quindi quello corrente

@@ -3,8 +3,8 @@ all: $(CONTIKI_PROJECT)
 
 CONTIKI=../../../..
 #aggiungo APPS al makefile x vedere se riconosce powertrace
-APPS = powertrace
-PROJECT_SOURCEFILES = powertrace.c
+APPS=powertrace
+PROJECT_SOURCEFILES=powertrace.c
 WITH_UIP6=1
 UIP_CONF_IPV6=1
 #X disabilitare RPL devo commentare CFLAGS+= -DUIP_CONF_IPV6_RPL

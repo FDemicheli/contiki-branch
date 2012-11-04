@@ -42,8 +42,8 @@
 #include "net/uip-ds6.h"
 #include "net/uip-nd6.h"
 
-//#define DEBUG DEBUG_NONE
-#define DEBUG DEBUG_PRINT
+#define DEBUG DEBUG_NONE
+//#define DEBUG DEBUG_PRINT
 #include "net/uip-debug.h"
 
 #define ETX_LIMIT		15
@@ -59,7 +59,7 @@ static neighbor_info_subscriber_t subscriber_callback;
 static void
 update_metric(const rimeaddr_t *dest, int packet_metric) ///aggiorna la link_metric
 {
-  PRINTF("NEIGHBOR INFO: update_metric\n");
+ // PRINTF("NEIGHBOR INFO: update_metric\n");
   link_metric_t *metricp;
   link_metric_t recorded_metric, new_metric;
   unsigned long time;
@@ -86,8 +86,9 @@ update_metric(const rimeaddr_t *dest, int packet_metric) ///aggiorna la link_met
     /// Update the EWMA of the ETX for the neighbor    
     ///etx_update = 0.9 * etx_recorded_until_now + (0.1) * etx_last
   
-    new_metric = ((uint16_t)recorded_metric * ETX_ALPHA +
-               (uint16_t)packet_metric * (ETX_SCALE - ETX_ALPHA)) / ETX_SCALE;
+  /*  new_metric = ((uint16_t)recorded_metric * ETX_ALPHA +
+               (uint16_t)packet_metric * (ETX_SCALE - ETX_ALPHA)) / ETX_SCALE;*/
+  new_metric = packet_metric;
 
    // PRINTF("link_metric con metricp = 16, quindi dopo EWMA vale %d\n", new_metric);
   }

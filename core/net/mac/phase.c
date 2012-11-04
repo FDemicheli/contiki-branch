@@ -195,7 +195,7 @@ phase_update(const struct phase_list *list,
   }
 
   // Modification by RMonica
-//  neighbor_info_other_source_metric_update(neighbor, 1); // notify change to RPL
+  neighbor_info_other_source_metric_update(neighbor, 1); // notify change to RPL
 }
 /*---------------------------------------------------------------------------*/
 /* Function added by RMonica
@@ -213,7 +213,7 @@ cycle_time_update(const struct phase_list *list,
   if(e != NULL) {
     if (e->cycle_time != cycle_time) {
       e->cycle_time = cycle_time;
-      //neighbor_info_other_source_metric_update(neighbor, 1); // notify change to RPL
+      neighbor_info_other_source_metric_update(neighbor, 1); // notify change to RPL
     }
   }
   else {
