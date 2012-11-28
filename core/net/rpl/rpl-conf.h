@@ -55,8 +55,9 @@
 //#define RPL_DAG_MC RPL_DAG_MC_ENERGY
   /* Routing function added by RMonica */
 //#define RPL_DAG_MC RPL_DAG_MC_AVG_DELAY
-  /** Routing function added by FDemicheli */
-#define RPL_DAG_MC RPL_DAG_MC_MLT //.See rpl.h line 69
+  /** Routing functions added by FDemicheli */
+//#define RPL_DAG_MC RPL_DAG_MC_MLT //.See rpl.h line 69
+#define RPL_DAG_MC RPL_DAG_MC_MLT_TOT //.See rpl.h line 71
 #endif /* RPL_CONF_DAG_MC */
 
 /*

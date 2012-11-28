@@ -67,6 +67,7 @@ typedef uint16_t rpl_ocp_t;//vuol dire che qls variabile di tipo rpl_rank_t è u
 
 #define RPL_DAG_MC_AVG_DELAY            9 /* Average delay towards sink. Added by RMonica */
 #define RPL_DAG_MC_MLT			10 /** Maximum lifetime. Added by FDemicheli */
+#define RPL_DAG_MC_MLT_TOT			11 /** Added by FDemicheli */
 
 /* DAG Metric Container flags. */
 #define RPL_DAG_MC_FLAG_P               0x8
@@ -91,8 +92,8 @@ typedef uint16_t rpl_ocp_t;//vuol dire che qls variabile di tipo rpl_rank_t è u
 #define RPL_DAG_MC_ENERGY_TYPE_SCAVENGING	2
 
 struct rpl_metric_object_energy {
-  uint8_t flags;
-  uint8_t energy_est; //campo E-E: indica la percentuale stimata di energia rimanente
+  uint16_t flags;
+  uint16_t energy_est; //campo E-E: indica la percentuale stimata di energia rimanente
 };
 
 /* Logical representation of a DAG Metric Container. */
@@ -105,7 +106,7 @@ struct rpl_metric_container {
   /* field added by RMonica */
   uint16_t node_cycle_time; //Contain the node cycle time
   /* field added by FDemicheli */
-  uint16_t pref_parent; ///Il nodo annuncia il suo PP
+  //uint16_t pref_parent; ///Il nodo annuncia il suo PP
   union metric_object {
     struct rpl_metric_object_energy energy;  
     uint16_t etx;

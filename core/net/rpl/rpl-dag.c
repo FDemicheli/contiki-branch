@@ -646,7 +646,7 @@ rpl_select_dag(rpl_instance_t *instance, rpl_parent_t *p) //seleziona il dag pre
     cont_num_scambi++;
   //  PRINTF("RPL: Changed preferred parent, rank changed from %u to %u\n",
   //	(unsigned)old_rank, best_dag->rank);
-   // PRINTF("num_scambi = %d\n",cont_num_scambi);
+    PRINTF("num_scambi = %d\n",cont_num_scambi);
     RPL_STAT(rpl_stats.parent_switch++);
     if(instance->mop != RPL_MOP_NO_DOWNWARD_ROUTES) {
       if(last_parent != NULL) {
@@ -1006,8 +1006,8 @@ global_repair(uip_ipaddr_t *from, rpl_dag_t *dag, rpl_dio_t *dio)
     rpl_process_parent_event(dag->instance, p);
   }
 
-  PRINTF("RPL: Participating in a global repair (version=%u, rank=%hu)\n",
-         dag->version, dag->rank);
+/*  PRINTF("RPL: Participating in a global repair (version=%u, rank=%hu)\n",
+         dag->version, dag->rank);*/
 
   RPL_STAT(rpl_stats.global_repairs++);
 }
@@ -1051,7 +1051,7 @@ rpl_recalculate_ranks(void)
             if(p->updated) {
               p->updated = 0;
               if(!rpl_process_parent_event(instance, p)) {
-                PRINTF("RPL: A parent was dropped\n");
+              //  PRINTF("RPL: A parent was dropped\n");
               }
 	      /*
 	       * Stop calculating here because the parent list may have changed.
@@ -1231,7 +1231,7 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio) //processa il pck e vede le 
     if(p->rank == dio->rank) {
    //   PRINTF("RPL: Received consistent DIO\n"); //la consistenza è data dal fatto che i rank del tx e rx sono uguali, oppure se  non 
       cont_consistent_dio++;                                          //cambia il preferred parent
-     // PRINTF("RPL: DIO consistenti rx = %d\n", cont_consistent_dio);
+      //PRINTF("RPL: DIO consistenti rx = %d\n", cont_consistent_dio);
       if(dag->joined) {
         instance->dio_counter++; //viene incrementata la cost c xchè il DIO rx è consistente
       //PRINTF("Il contatore c = %d\n", instance->dio_counter);  

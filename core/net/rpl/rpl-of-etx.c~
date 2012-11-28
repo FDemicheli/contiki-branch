@@ -64,7 +64,7 @@
 #include "net/neighbor-info.h"
 #include "sys/compower.h" ///Added by FDemicheli
 #include "sys/energest.h" ///Added by FDemicheli
-#include "node-id.h"
+//#include "node-id.h"
 
 #define DEBUG DEBUG_NONE
 //#define DEBUG DEBUG_PRINT
@@ -77,7 +77,9 @@ static rpl_parent_t *best_parent(rpl_parent_t *, rpl_parent_t *);
 static rpl_dag_t *best_dag(rpl_dag_t *, rpl_dag_t *);
 static rpl_rank_t calculate_rank(rpl_parent_t *, rpl_rank_t);
 
+#if (RPL_DAG_MC == RPL_DAG_MC_MLT) || (RPL_DAG_MC == RPL_DAG_MC_MLT_TOT)
 static int get_number_of_hops(rpl_parent_t *);
+#endif
 
 /*
  Calculates a rank value using the parent rank and a base rank.  If "parent" is NULL, the objective function selects a default increment
@@ -119,7 +121,7 @@ typedef uint16_t rpl_path_metric_t;
 static rpl_path_metric_t
 calculate_path_metric(rpl_parent_t *p)
 {
-#if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY)
+#if (RPL_DAG_MC == RPL_DAG_MC_ETX)
   if(p == NULL || (p->mc.obj.etx == 0 && p->rank > ROOT_RANK(p->dag->instance))) {
     return MAX_PATH_COST * RPL_DAG_MC_ETX_DIVISOR;
   } else {    
@@ -129,8 +131,23 @@ calculate_path_metric(rpl_parent_t *p)
    // PRINTF("etx = %lu\n", etx);
    // PRINTF("p->mc.obj.etx = %u\n", p->mc.obj.etx);
    // PRINTF("(uint16_t) etx = %d\n", (uint16_t) etx);
-    PRINTF("p->mc.obj.etx + (uint16_t) etx = %d\n", p->mc.obj.etx + (uint16_t) etx);
+  //  PRINTF("p->mc.obj.etx + (uint16_t) etx = %d\n", p->mc.obj.etx + (uint16_t) etx);
     return p->mc.obj.etx + (uint16_t) etx;
+  }
+#elif  (RPL_DAG_MC == RPL_DAG_MC_ENERGY)
+  if(p == NULL || (p->mc.obj.energy.energy_est == 0 && p->rank > ROOT_RANK(p->dag->instance))) {
+    //consumo iniziale: se il parent non consuma, almeno spedisco il consumo del nodo corrente (che puo essere anch'esso 0)
+    //PRINTF("PARENT NON CONSUMA\n");
+    return p->mc.obj.energy.energy_est + energest_get_current_energy_consumption();
+  } else {
+    uint16_t consumed_energy = energest_get_current_energy_consumption();
+    // PRINTF("consumed_energy = %u\n",consumed_energy);
+    //Devo andare a leggere il valore di energia consumata del nodo parent
+    ///p->mc.obj.mlt; //energy consumption from parent node --> reads from DIO message received    
+  //  PRINTF("p->mc.obj.mlt: en_cons_parent = %u\n",p->mc.obj.mlt);
+    ///total energy consumption
+//    PRINTF("energ cons tot = %u\n", p->mc.obj.mlt + consumed_energy);
+    return p->mc.obj.energy.energy_est + consumed_energy;//--> è questo che viene inserito nel DIO x essere spedito
   }
 #elif RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY // RMonica
   if(p == NULL || (p->mc.obj.avg_delay_to_sink == 0 && p->rank > ROOT_RANK(p->dag->instance))) {
@@ -148,19 +165,19 @@ calculate_path_metric(rpl_parent_t *p)
     return (rpl_path_metric_t)delay;
   }
 
-#elif RPL_DAG_MC == RPL_DAG_MC_MLT // FDemicheli
+#elif ((RPL_DAG_MC == RPL_DAG_MC_MLT) || (RPL_DAG_MC == RPL_DAG_MC_MLT_TOT)) // FDemicheli
   if(p == NULL || (p->mc.obj.mlt == 0 && p->rank > ROOT_RANK(p->dag->instance))) {
     //consumo iniziale: se il parent non consuma, almeno spedisco il consumo del nodo corrente (che puo essere anch'esso 0)
     //PRINTF("PARENT NON CONSUMA\n");
     return p->mc.obj.mlt + energest_get_current_energy_consumption();
   } else {
     uint16_t consumed_energy = energest_get_current_energy_consumption();
-    // PRINTF("consumed_energy = %u\n",consumed_energy);
+    //PRINTF("consumed_energy = %u\n",consumed_energy);
     //Devo andare a leggere il valore di energia consumata del nodo parent
     ///p->mc.obj.mlt; //energy consumption from parent node --> reads from DIO message received    
-//    PRINTF("p->mc.obj.mlt: en_cons_parent = %u\n",p->mc.obj.mlt);
+   // PRINTF("p->mc.obj.mlt: en_cons_parent = %u\n",p->mc.obj.mlt);
     ///total energy consumption
-//    PRINTF("energ cons tot = %u\n", p->mc.obj.mlt + consumed_energy);
+   // PRINTF("energ cons tot = %u\n", p->mc.obj.mlt + consumed_energy);
     return p->mc.obj.mlt + consumed_energy;//--> è questo che viene inserito nel DIO x essere spedito
   }
   
@@ -171,6 +188,7 @@ calculate_path_metric(rpl_parent_t *p)
 #endif
 }
 
+#if (RPL_DAG_MC == RPL_DAG_MC_MLT) || (RPL_DAG_MC == RPL_DAG_MC_MLT_TOT)
 static int 
 get_number_of_hops(rpl_parent_t *p) //declared in rpl-private.h line 323
    {
@@ -179,7 +197,9 @@ get_number_of_hops(rpl_parent_t *p) //declared in rpl-private.h line 323
        num_hops = ((p->rank)/16) -16;
      return num_hops;
    }  
+#endif   
 
+#if (RPL_DAG_MC == RPL_DAG_MC_MLT)
 static rpl_path_metric_t
 calculate_avg_energy(rpl_parent_t *p)
  {
@@ -193,16 +213,16 @@ calculate_avg_energy(rpl_parent_t *p)
   //rpl_rank_t rank_nodo_1, rank_nodo_2;
   
 
-  PRINTF("P = "); //--> è il primo nodo nell'insieme dei parent
-  PRINT6ADDR(&p->addr);
-  PRINTF("\n");
+ // PRINTF("P = "); //--> è il primo nodo nell'insieme dei parent
+ // PRINT6ADDR(&p->addr);
+ // PRINTF("\n");
   p_metric_tot = calculate_path_metric(p); //--> qui ho l'energia totale, mi serve la media
  
   
-  PRINTF("p->rank = %u\n", p->rank);
+  //PRINTF("p->rank = %u\n", p->rank);
   
   num_hop = get_number_of_hops(p);
-  PRINTF("num_hop = %d\n",num_hop);
+  //PRINTF("num_hop = %d\n",num_hop);
   
   if(num_hop == 0) // allora è il root ed evito la divisione per 0
   {
@@ -220,6 +240,7 @@ calculate_avg_energy(rpl_parent_t *p)
   
   return p_metric;
  }
+#endif
 
 static void
 reset(rpl_dag_t *sag)
@@ -249,14 +270,16 @@ calculate_rank(rpl_parent_t *p, rpl_rank_t base_rank)
     //PRINTF("rank_increase (1280) = %d\n",rank_increase);
   } else {
     /* multiply first, then scale down to avoid truncation effects */
-#if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY)
+#if (RPL_DAG_MC == RPL_DAG_MC_ETX) 
     rank_increase = NEIGHBOR_INFO_FIX2ETX(p->link_metric * p->dag->instance->min_hoprankinc);//valore intero
     //rank_increase = p->link_metric * 256 = ETX * 256
     //PRINTF("rank_increase = %d\n",rank_increase);
+#elif(RPL_DAG_MC == RPL_DAG_MC_ENERGY)    
+    rank_increase = NEIGHBOR_INFO_FIX2ETX(p->dag->instance->min_hoprankinc);
 #elif RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY
     rank_increase = NEIGHBOR_INFO_FIX2ETX(p->dag->instance->min_hoprankinc);
     
-#elif RPL_DAG_MC == RPL_DAG_MC_MLT /*FDemicheli*/
+#elif ((RPL_DAG_MC == RPL_DAG_MC_MLT) || (RPL_DAG_MC == RPL_DAG_MC_MLT_TOT)) /*FDemicheli*/
 
     rank_increase = NEIGHBOR_INFO_FIX2ETX(p->dag->instance->min_hoprankinc); // rank_increase = 256/16 = 16
 #else
@@ -302,39 +325,93 @@ best_parent(rpl_parent_t *p1, rpl_parent_t *p2) //Compares two parents and retur
   rpl_dag_t *dag;
  
   rpl_path_metric_t min_diff;
- 
+  
   rpl_path_metric_t p1_metric;
   rpl_path_metric_t p2_metric;
-  
-  int num_hop_1, num_hop_2;
  
   dag = p1->dag; // Both parents must be in the same DAG. 
 
-#if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY)
+#if (RPL_DAG_MC == RPL_DAG_MC_ETX)
   min_diff = RPL_DAG_MC_ETX_DIVISOR / PARENT_SWITCH_THRESHOLD_DIV;//min_diff = 128/2 = 64
 #elif (RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY)
   min_diff = AVG_DELAY_SWITCH_THRESHOLD;//10
+#elif (RPL_DAG_MC == RPL_DAG_MC_ENERGY)
+  min_diff = 0;
 #elif (RPL_DAG_MC == RPL_DAG_MC_MLT)
- min_diff = 10; 
+ //min_diff = 10; 
+ //  min_diff = 100;
+// min_diff = 200;
+// min_diff = 400;
+ min_diff = 600;
+#elif (RPL_DAG_MC == RPL_DAG_MC_MLT_TOT)
+//  min_diff = 400; --> stesse prestazioni del caso min_diff = 500
+ //min_diff = 500;
+// min_diff = 600;
+// min_diff = 1000;
+  min_diff = 2000;
 #else
 #error "best_parent: RPL_DAG_MC not supported."
 #endif
 
-#if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY) || ((RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY))
+#if ((RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY) || (RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY))
   
   p1_metric = calculate_path_metric(p1); 
-  //PRINTF("p1_metric = %u\n", p1_metric);
+ // PRINTF("p1_metric = %u\n", p1_metric);
     
   p2_metric = calculate_path_metric(p2);
-  //PRINTF("p2_metric = %u\n", p2_metric);*/
+  //PRINTF("p2_metric = %u\n", p2_metric);
   
-#elif (RPL_DAG_MC == RPL_DAG_MC_MLT)
-
- p1_metric = calculate_avg_energy(p1);
- p2_metric = calculate_avg_energy(p2);
-
+#elif (RPL_DAG_MC == RPL_DAG_MC_MLT_TOT)
+ 
+ int num_hop_1, num_hop_2;
+  
+ p1_metric = calculate_path_metric(p1);
+ p2_metric = calculate_path_metric(p2);
+ 
+ PRINTF("P1 = "); //--> è il primo nodo nell'insieme dei parent
+ PRINT6ADDR(&p1->addr);
+ PRINTF("\n");
+ 
+ PRINTF("P2 = "); //--> è il primo nodo nell'insieme dei parent
+ PRINT6ADDR(&p2->addr);
+ PRINTF("\n");
+  
  PRINTF("p1_metric = %u\n", p1_metric);
  PRINTF("p2_metric = %u\n", p2_metric);
+ 
+ //PRINTF("p1 rank = %u\n", p1->rank);
+// PRINTF("p2 rank = %u\n",p2->rank);
+ 
+ num_hop_1 = get_number_of_hops(p1);
+ num_hop_2 = get_number_of_hops(p2);
+ 
+// PRINTF("rank nodo corrente = %u \n",dag->instance->current_dag->rank); 
+ 
+#elif (RPL_DAG_MC == RPL_DAG_MC_MLT)
+
+  int num_hop_1, num_hop_2;
+  
+ p1_metric = calculate_avg_energy(p1);
+ p2_metric = calculate_avg_energy(p2);
+ 
+ PRINTF("P1 = "); //--> è il primo nodo nell'insieme dei parent
+ PRINT6ADDR(&p1->addr);
+ PRINTF("\n");
+ 
+ PRINTF("P2 = "); 
+ PRINT6ADDR(&p2->addr);
+ PRINTF("\n");
+  
+ //PRINTF("p1 rank = %u\n", p1->rank);
+ //PRINTF("p2 rank = %u\n",p2->rank);
+ 
+ PRINTF("p1_metric = %u\n", p1_metric);
+ PRINTF("p2_metric = %u\n", p2_metric);
+ 
+// PRINTF("rank nodo corrente = %u \n",dag->instance->current_dag->rank); 
+  
+ num_hop_1 = get_number_of_hops(p1);
+ num_hop_2 = get_number_of_hops(p2);
  
 /*  rpl_path_metric_t p1_metric_tot; 
   rpl_path_metric_t p2_metric_tot;
@@ -466,32 +543,40 @@ best_parent(rpl_parent_t *p1, rpl_parent_t *p2) //Compares two parents and retur
 #error "best_parent: RPL_DAG_MC not supported."
 #endif  
 
- num_hop_1 = get_number_of_hops(p1);
- num_hop_2 = get_number_of_hops(p2);
+ //dag->instance->current_dag->rank = rank del nodo attuale
+/**MLT/ /*      if(p1-> rank >= dag->instance->current_dag->rank)
+	  return p2;
+       
+       else if(p2-> rank >= dag->instance->current_dag->rank)
+	  return p1;
+       
+       else if(p1-> rank >= dag->instance->current_dag->rank && p2-> rank >= dag->instance->current_dag->rank)	          
+	  return dag->preferred_parent;*/
 
-  if(p1_metric == 0 && p2_metric == 0)
-     return dag-> preferred_parent;
-  
-if(num_hop_2 <= num_hop_1)
- { 
-  if(p1 == dag->preferred_parent || p2 == dag->preferred_parent) {
+  if(p1 == dag->preferred_parent || p2 == dag->preferred_parent) {      
    // Maintain stability of the preferred parent in case of similar ranks.  
-      PRINTF(" p2_metric - min_diff = % d\n", p2_metric - min_diff); 
+
+/**MLT/   /*int a;
+   a = p2_metric - min_diff;
+   if (a < 0)
+   {
+    a = 0;
+   }*/
+      
     if(p1_metric < p2_metric + min_diff &&
-       p1_metric > p2_metric - min_diff) {
-//      PRINTF(" p2_metric + min_diff = % d\n", p2_metric + min_diff);
- //     PRINTF(" p2_metric - min_diff = % d\n", p2_metric - min_diff); 
-   
+       p1_metric > p2_metric - min_diff) 
+    
+/**MLT//*if(p1_metric < p2_metric + min_diff &&
+       p1_metric > a)*/ {
+      //PRINTF(" p2_metric + min_diff = % d\n", p2_metric + min_diff);
+      //PRINTF(" p2_metric - min_diff = % d\n", p2_metric - min_diff);
       return dag->preferred_parent; ///vuol dire che si mantiene il PP attuale
       ///Nel mio caso devo mantenerlo anche se il candidato parent ha en_cons < PP ma rank maggiore del nodo corrente
     }  
   
  } 
-//PRINTF("BEST_PARENT: scelgo il minore\n");
-  return p1_metric < p2_metric ? p1 : p2; 
-}
-
-  return dag->preferred_parent;
+//  PRINTF("BEST_PARENT: scelgo il minore\n");
+ return p1_metric < p2_metric ? p1 : p2;  
 }
    
 static void
@@ -499,7 +584,7 @@ update_metric_container(rpl_instance_t *instance)
 {
   rpl_path_metric_t path_metric;
   rpl_dag_t *dag;
-  rimeaddr_t macaddr;///FDemicheli
+  //rimeaddr_t macaddr;///FDemicheli
   
   instance->mc.flags = RPL_DAG_MC_FLAG_P;
   instance->mc.aggr = RPL_DAG_MC_AGGR_ADDITIVE;
@@ -522,9 +607,9 @@ update_metric_container(rpl_instance_t *instance)
     path_metric = 0; ///anche x la mia metrica deve essere cosi, x cui lo lascio inalterato
   } else {
    // PRINTF("calcolo path_metric\n");
-    PRINTF("PREFERRED PARENT: ");
+ /*   PRINTF("PREFERRED PARENT: ");
     PRINT6ADDR(&dag->preferred_parent->addr);
-    PRINTF("\n");
+    PRINTF("\n");*/
     path_metric = calculate_path_metric(dag->preferred_parent);//viene aggiornata la metrica di cammino in base al nuovo preferred parent
    // PRINTF(" path_metric_else = %d\n",path_metric);
   }
@@ -548,14 +633,15 @@ update_metric_container(rpl_instance_t *instance)
   instance->mc.type = RPL_DAG_MC_ENERGY;
   instance->mc.length = sizeof(instance->mc.obj.energy);
 
-  if(dag->rank == ROOT_RANK(instance)) { //viene selezionato un nodo alimentato oppure con la batteria
-    type = RPL_DAG_MC_ENERGY_TYPE_MAINS; //nodo alimentato
+  /*if(dag->rank == ROOT_RANK(instance)) { //viene selezionato un nodo alimentato oppure con la batteria
+    instance->mc.type = RPL_DAG_MC_ENERGY_TYPE_MAINS; //nodo alimentato
   } else {
-    type = RPL_DAG_MC_ENERGY_TYPE_BATTERY; //nodo con la batteria
-  }
-
-  instance->mc.obj.energy.flags = type << RPL_DAG_MC_ENERGY_TYPE;
+    instance->mc.type = RPL_DAG_MC_ENERGY_TYPE_BATTERY; //nodo con la batteria
+  }*/
+  //instance->mc.obj.energy.flags = instance->mc.type << RPL_DAG_MC_ENERGY_TYPE;
+  instance->mc.obj.energy.flags = instance->mc.type;
   instance->mc.obj.energy.energy_est = path_metric;
+ // PRINTF("en cons da mettere nel DIO = %u\n", path_metric);  
 
 #elif RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY /*RMonica*/
 
@@ -563,7 +649,7 @@ update_metric_container(rpl_instance_t *instance)
   instance->mc.length = sizeof(instance->mc.obj.avg_delay_to_sink);
   instance->mc.obj.avg_delay_to_sink = path_metric;
 
-#elif RPL_DAG_MC == RPL_DAG_MC_MLT /*FDemicheli*/
+#elif (RPL_DAG_MC == RPL_DAG_MC_MLT) || (RPL_DAG_MC == RPL_DAG_MC_MLT_TOT) /*FDemicheli*/
 /**This metric is based on work by Riccardo Monica, and evaluate the energy consumption of nodes with different cycle times */
   instance->mc.type = RPL_DAG_MC_MLT;
 
@@ -575,11 +661,11 @@ update_metric_container(rpl_instance_t *instance)
   
   
  
-  uip_ds6_get_addr_iid(&(instance->current_dag->preferred_parent->addr),(uip_lladdr_t *)&macaddr);/// Ottengo il PP del nodo corrente
-  instance->mc.pref_parent = (int)(macaddr.u8[7]);
+  //uip_ds6_get_addr_iid(&(instance->current_dag->preferred_parent->addr),(uip_lladdr_t *)&macaddr);/// Ottengo il PP del nodo corrente
+  //instance->mc.pref_parent = (int)(macaddr.u8[7]);
     //PRINTF("PROVA = %u\n",(int)(macaddr.u8[7]));
   
- // PRINTF("en cons da mettere nel DIO = %d\n", path_metric); //è 0 se all_transmit o all_listen sono < 32768
+  //PRINTF("en cons da mettere nel DIO = %d\n", path_metric); //è 0 se all_transmit o all_listen sono < 32768
 
 #else
 
@@ -587,3 +673,69 @@ update_metric_container(rpl_instance_t *instance)
 
 #endif /* RPL_DAG_MC */
 }
+
+
+
+
+ /*      
+       if(p1->rank > rank_nodo_corrente) --> p1 non puo essere scelto
+       if(p2->rank > rank_nodo_corrente) --> p2 non puo essere scelto 
+       if(p1->rank  && p2->rank > rank_nodo_corrente) --> p1 e p2 non possono essere scelti --> ritorno il pp
+
+       if(p1-> rank > dag->instance->current_dag->rank && p2-> rank > dag->instance->current_dag->rank)	          
+          return dag->preferred_parent;
+       
+       if(p1-> rank > dag->instance->current_dag->rank)
+	  return p2;
+       
+       if(p2-> rank > dag->instance->current_dag->rank)
+	  return p1;
+
+  if(p1 == dag->preferred_parent || p2 == dag->preferred_parent) {
+      
+   // Maintain stability of the preferred parent in case of similar ranks.  
+   //   PRINTF(" p2_metric + min_diff = % d\n", p2_metric + min_diff);
+   //   PRINTF(" p2_metric - min_diff = % d\n", p2_metric - min_diff);
+    if(p1_metric < p2_metric + min_diff &&
+       p1_metric > p2_metric - min_diff) {
+      PRINTF(" p2_metric + min_diff = % d\n", p2_metric + min_diff);
+      PRINTF(" p2_metric - min_diff = % d\n", p2_metric - min_diff);
+      return dag->preferred_parent; ///vuol dire che si mantiene il PP attuale
+      ///Nel mio caso devo mantenerlo anche se il candidato parent ha en_cons < PP ma rank maggiore del nodo corrente
+    }  
+  
+ } 
+  PRINTF("BEST_PARENT: scelgo il minore\n");
+  return p1_metric < p2_metric ? p1 : p2; 
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
