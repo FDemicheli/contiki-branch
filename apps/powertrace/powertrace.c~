@@ -90,7 +90,8 @@ powertrace_print(char *str)
 
   uint32_t time, all_time, radio, all_radio;
 
-  //uint32_t energy_consumed_node_mJ;// variable added by FDemicheli
+  uint32_t energy_consumed_node_mJ;// variable added by FDemicheli
+  uint32_t energy_consumed_node_rx, energy_consumed_node_tx;
   
   struct powertrace_sniff_stats *s;
 
@@ -158,10 +159,20 @@ powertrace_print(char *str)
   all_time = all_cpu + all_lpm;
   all_radio = energest_type_time(ENERGEST_TYPE_LISTEN) +
     energest_type_time(ENERGEST_TYPE_TRANSMIT);
-     
+    
+  energy_consumed_node_rx = 3 * 22 * (all_listen / RTIMER_ARCH_SECOND);
+  
+  energy_consumed_node_tx  = 3 * 20 * (all_transmit/RTIMER_ARCH_SECOND)
+  
+  energy_consumed_node_mJ = energy_consumed_node_tx + energy_consumed_node_rx;
+    
   //energy_consumed_node_mJ = 3 * 20 * (all_transmit/RTIMER_ARCH_SECOND) + 3 * 22 * (all_listen / RTIMER_ARCH_SECOND);
+  
+  printf("energy_consumed_node_tx = %lu\n",energy_consumed_node_tx);
+  
+  printf("energy_consumed_node_rx = %lu\n",energy_consumed_node_rx);
                              
-  //printf("energy_consumed_node_mJ = %lu\n",energy_consumed_node_mJ);
+  printf("energy_consumed_node_mJ = %lu\n",energy_consumed_node_mJ);
   
     
  /* printf("%s %lu P %d.%d %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu (radio %d.%02d%% / %d.%02d%% tx %d.%02d%% / %d.%02d%% listen %d.%02d%% / %d.%02d%%)\n",
@@ -248,7 +259,7 @@ powertrace_print(char *str)
 
 
 /*-------------------------------------------------------------------------------------------------------------------------*/
-//Function added by Fabio Demicheli. Declared in sys/energest.h
+//Function added by Fabio Demicheli. Declared in sys/energest.h line 77
 uint16_t 
 energest_get_current_energy_consumption()
 { 

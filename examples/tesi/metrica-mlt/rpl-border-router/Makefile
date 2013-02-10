@@ -1,3 +1,5 @@
+# Makefile border-router di metrica mlt
+
 CONTIKI_PROJECT=border-router
 all: $(CONTIKI_PROJECT) 
 
@@ -7,6 +9,9 @@ APPS=powertrace
 PROJECT_SOURCEFILES=powertrace.c
 WITH_UIP6=1
 UIP_CONF_IPV6=1
+
+#LDFLAGS+=-lm #x math.h ??
+
 #X disabilitare RPL devo commentare CFLAGS+= -DUIP_CONF_IPV6_RPL
 CFLAGS+= -DUIP_CONF_IPV6_RPL
 

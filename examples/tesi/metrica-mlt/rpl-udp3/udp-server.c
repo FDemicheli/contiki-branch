@@ -40,8 +40,8 @@
 #include <string.h>
 #include <ctype.h>
 
-//#define DEBUG DEBUG_PRINT
-#define DEBUG DEBUG_NONE
+#define DEBUG DEBUG_PRINT
+//#define DEBUG DEBUG_NONE
 
 #include "net/uip-debug.h"
 

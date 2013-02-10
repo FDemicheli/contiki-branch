@@ -7,6 +7,8 @@ WITH_UIP6=1
 UIP_CONF_IPV6=1
 WITH_COMPOWER=1
 
+#LDFLAGS+=-lm #per math.h ??
+
 #X disabilitare RPL devo commentare CFLAGS+= -DUIP_CONF_IPV6_RPL
 CFLAGS+= -DUIP_CONF_IPV6_RPL
 

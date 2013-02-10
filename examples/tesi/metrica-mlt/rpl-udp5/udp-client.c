@@ -69,8 +69,7 @@ PROCESS(udp_client_process, "UDP client process");
 AUTOSTART_PROCESSES(&udp_client_process);
 /*---------------------------------------------------------------------------*/
 static void
-tcpip_handler(void) {}
-/*
+tcpip_handler(void)
 {
   char *str;
 
@@ -79,11 +78,11 @@ tcpip_handler(void) {}
     str[uip_datalen()] = '\0';
     printf("DATA recv '%s'\n", str);
   }
-}*/
+}
 /*---------------------------------------------------------------------------*/
 static void
-send_packet(void *ptr){}
-/*{
+send_packet(void *ptr)
+{
   static int seq_id;
   char buf[MAX_PAYLOAD_LEN];
 
@@ -91,13 +90,14 @@ send_packet(void *ptr){}
   PRINTF("DATA send to %d 'Hello %d'\n",
          server_ipaddr.u8[sizeof(server_ipaddr.u8) - 1], seq_id);
   sprintf(buf, "Hello %d from the client", seq_id);
+  //printf(" (msg: %s)\n", buf); //aggiunto
   uip_udp_packet_sendto(client_conn, buf, strlen(buf),
                         &server_ipaddr, UIP_HTONS(UDP_SERVER_PORT));
-}*/
+}
 /*---------------------------------------------------------------------------*/
 static void
-print_local_addresses(void){}
-/*{
+print_local_addresses(void)
+{
   int i;
   uint8_t state;
 
@@ -108,13 +108,13 @@ print_local_addresses(void){}
        (state == ADDR_TENTATIVE || state == ADDR_PREFERRED)) {
       PRINT6ADDR(&uip_ds6_if.addr_list[i].ipaddr);
       PRINTF("\n");
-       hack to make address "final" 
+     //  hack to make address "final" 
       if (state == ADDR_TENTATIVE) {
 	uip_ds6_if.addr_list[i].state = ADDR_PREFERRED;
       }
     }
   }
-} */
+} 
 /*---------------------------------------------------------------------------*/
 static void
 set_global_address(void)
@@ -168,10 +168,10 @@ PROCESS_THREAD(udp_client_process, ev, data)
 
   /* new connection with remote host */
   client_conn = udp_new(NULL, UIP_HTONS(UDP_SERVER_PORT), NULL); 
-  /*if(client_conn == NULL) {
-    PRINTF("No UDP connection available, exiting the process!\n");
+  if(client_conn == NULL) {
+  //  PRINTF("No UDP connection available, exiting the process!\n");
     PROCESS_EXIT();
-  }*/
+  }
   udp_bind(client_conn, UIP_HTONS(UDP_CLIENT_PORT)); 
 
   PRINTF("Created a connection with the server ");
@@ -186,14 +186,15 @@ PROCESS_THREAD(udp_client_process, ev, data)
   etimer_set(&periodic, SEND_INTERVAL);
   while(1) {
     PROCESS_YIELD();
-    /*if(ev == tcpip_event) {
+    if(ev == tcpip_event) {
+      PRINTF("EVENTO tcpip\n");
       tcpip_handler();
-    }*/
+    }
     
     if(etimer_expired(&periodic)) {
       etimer_reset(&periodic);
       ctimer_set(&backoff_timer, SEND_TIME, send_packet, NULL);
-//PRINTF("print = %d\n",print);
+
 #if WITH_COMPOWER
       if (print == 0) {
 	powertrace_print("#P");
@@ -208,3 +209,4 @@ PROCESS_THREAD(udp_client_process, ev, data)
   PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
+

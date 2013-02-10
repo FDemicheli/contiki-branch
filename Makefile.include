@@ -159,6 +159,7 @@ ifneq ($(RELSTR),)
 CFLAGS += -DCONTIKI_VERSION_STRING=\"Contiki-$(RELSTR)\"
 endif
 
+
 ### Automatic dependency generation
 
 ifneq ($(MAKECMDGOALS),clean)

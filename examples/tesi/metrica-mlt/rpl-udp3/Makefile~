@@ -1,11 +1,13 @@
 #Makefile di rpl-udp3. X usare powertrace basta abilitare WITH_COMPOWER=1
 all: udp-client udp-server
 APPS=servreg-hack
-CONTIKI=/home/fabio/contiki/
+CONTIKI=../../../../
 
 WITH_UIP6=1
 UIP_CONF_IPV6=1
 WITH_COMPOWER=1
+
+LDFLAGS+=-lm #per math.h ??
 
 #X disabilitare RPL devo commentare CFLAGS+= -DUIP_CONF_IPV6_RPL
 CFLAGS+= -DUIP_CONF_IPV6_RPL

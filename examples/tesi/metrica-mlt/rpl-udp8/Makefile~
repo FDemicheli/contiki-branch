@@ -1,4 +1,4 @@
-#Makefile di rpl-udp5. X usare powertrace basta abilitare WITH_COMPOWER=1
+#Makefile di rpl-udp8. X usare powertrace basta abilitare WITH_COMPOWER=1
 all: udp-client udp-server
 #all: $(CONTIKI_PROJECT) 
 
@@ -8,6 +8,8 @@ APPS=servreg-hack
 WITH_UIP6=1
 UIP_CONF_IPV6=1
 WITH_COMPOWER=1
+
+LDFLAGS+=-lm #per math.h ??
 
 CFLAGS+= -DUIP_CONF_IPV6_RPL
 ## patch different cycle times

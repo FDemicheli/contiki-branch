@@ -52,6 +52,8 @@
 #include <ctype.h>
 
 #define DEBUG DEBUG_NONE
+//#define DEBUG DEBUG_PRINT
+
 #include "net/uip-debug.h"
 
 uint16_t dag_id[] = {0x1111, 0x1100, 0, 0, 0, 0, 0, 0x0011};
@@ -308,7 +310,7 @@ print_local_addresses(void)
   int i;
   uint8_t state;
 
-  PRINTA("Server IPv6 addresses:\n");
+//  PRINTA("Server IPv6 addresses:\n");
   for(i = 0; i < UIP_DS6_ADDR_NB; i++) {
     state = uip_ds6_if.addr_list[i].state;
     if(uip_ds6_if.addr_list[i].isused &&
@@ -342,6 +344,27 @@ set_prefix_64(uip_ipaddr_t *prefix_64)
   uip_ds6_addr_add(&ipaddr, 0, ADDR_AUTOCONF);
 }
 /*---------------------------------------------------------------------------*/
+static void
+tcpip_handler(void)
+{
+  char *appdata;
+
+  if(uip_newdata()) {
+    appdata = (char *)uip_appdata;
+    appdata[uip_datalen()] = 0;
+    PRINTF("DATA recv '%s' from ", appdata);
+    PRINTF("%d",
+           UIP_IP_BUF->srcipaddr.u8[sizeof(UIP_IP_BUF->srcipaddr.u8) - 1]);
+    PRINTF("\n");
+#if SERVER_REPLY
+    //PRINTF("DATA sending reply\n");
+    uip_ipaddr_copy(&server_conn->ripaddr, &UIP_IP_BUF->srcipaddr);
+    uip_udp_packet_send(server_conn, "Reply", sizeof("Reply"));
+    uip_create_unspecified(&server_conn->ripaddr);
+#endif
+  }
+}
+/***************************************************************************************/
 PROCESS_THREAD(border_router_process, ev, data)
 {
   static struct etimer et;
@@ -395,11 +418,14 @@ PROCESS_THREAD(border_router_process, ev, data)
   while(1) {
     PROCESS_YIELD();
     if (ev == sensors_event && data == &button_sensor) {
-      PRINTF("Initiating global repair\n");
+     // PRINTF("Initiating global repair\n");
       rpl_repair_root(RPL_DEFAULT_INSTANCE);
+    } else if(ev == tcpip_event) {
+      tcpip_handler();
     }
   }
 
   PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
+
