@@ -113,7 +113,7 @@ struct rpl_metric_container {
     /* field added by RMonica */
     uint16_t avg_delay_to_sink;
     /* field added by FDemicheli */
-    uint16_t mlt;
+    uint16_t entot;
   } obj;
 };
 typedef struct rpl_metric_container rpl_metric_container_t;

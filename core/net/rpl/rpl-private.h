@@ -130,7 +130,7 @@
 #else
 #define RPL_MIN_HOPRANKINC          RPL_CONF_MIN_HOPRANKINC
 #endif
-#define RPL_MAX_RANKINC             (7 * RPL_MIN_HOPRANKINC) //7 è il max numero di hop
+#define RPL_MAX_RANKINC             (7 * RPL_MIN_HOPRANKINC)
 
 #define DAG_RANK(fixpt_rank, instance) \
   ((fixpt_rank) / (instance)->min_hoprankinc)

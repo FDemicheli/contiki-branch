@@ -56,8 +56,8 @@
 
 #include <stdio.h>
 
-//#define DEBUG 0
-#define DEBUG 1 ///to print
+#define DEBUG 0
+//#define DEBUG 1 ///to print
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -150,8 +150,8 @@ transmit_packet_list(void *ptr)
   if(n) {
     struct rdc_buf_list *q = list_head(n->queued_packet_list);
     if(q != NULL) {
-      PRINTF("csma: preparing number %d %p, queue len %d\n", n->transmissions, q,
-          list_length(n->queued_packet_list));
+      //PRINTF("csma: preparing number %d %p, queue len %d\n", n->transmissions, q,
+        //  list_length(n->queued_packet_list));
       /* Send packets in the neighbor's list */
       NETSTACK_RDC.send_list(packet_sent, n, q);
     }
@@ -223,10 +223,10 @@ packet_sent(void *ptr, int status, int num_transmissions)
     
     switch(status) {
     case MAC_TX_COLLISION:
-      PRINTF("csma: rexmit collision %d\n", n->transmissions);
+     //PRINTF("csma: rexmit collision %d\n", n->transmissions);
       break;
     case MAC_TX_NOACK:
-      PRINTF("csma: rexmit noack %d\n", n->transmissions);
+     // PRINTF("csma: rexmit noack %d\n", n->transmissions);
       break;
     default:
       PRINTF("csma: rexmit err %d %d\n", status, n->transmissions);
@@ -268,7 +268,7 @@ packet_sent(void *ptr, int status, int num_transmissions)
      
      else {
       if(status == MAC_TX_OK) {
-      PRINTF("csma: rexmit ok %d\n", n->transmissions);
+      //PRINTF("csma: rexmit ok %d\n", n->transmissions);
     } else {
       PRINTF("csma: rexmit failed %d: %d\n", n->transmissions, status);
     }
@@ -344,10 +344,10 @@ send_packet(mac_callback_t sent, void *ptr)
             return;
           }
           memb_free(&metadata_memb, q->ptr);
-          PRINTF("csma: could not allocate queuebuf, dropping packet\n");
+         // PRINTF("csma: could not allocate queuebuf, dropping packet\n");
         }
         memb_free(&packet_memb, q);
-        PRINTF("csma: could not allocate queuebuf, dropping packet\n");
+       // PRINTF("csma: could not allocate queuebuf, dropping packet\n");
       }
       /* The packet allocation failed. Remove and free neighbor entry if empty. */
       if(list_length(n->queued_packet_list) == 0) {

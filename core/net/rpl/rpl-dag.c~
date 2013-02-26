@@ -54,8 +54,9 @@
 
 //Def il livello di debug del codice
 //#define DEBUG DEBUG_NONE ///non stampa a video i msg
-#define DEBUG DEBUG_PRINT /*stampa a video tutti i printf(), e se li stampa tutti poi c'è errore xchè occupano troppa memoria*/
+//#define DEBUG DEBUG_PRINT /*stampa a video tutti i printf(), e se li stampa tutti poi c'è errore xchè occupano troppa memoria*/
 //#define DEBUG DEBUG_ANNOTATE /*stampa solo i msg con ANNOTATE*/
+#define DEBUG 1
 
 #include "net/uip-debug.h"
 
@@ -130,8 +131,8 @@ nullify_parents(rpl_dag_t *dag, rpl_rank_t minimum_rank)
 {
   rpl_parent_t *p, *p2;
 
-  PRINTF("RPL: Removing parents nullify (minimum rank %u)\n",
-	minimum_rank);
+  //PRINTF("RPL: Removing parents nullify (minimum rank %u)\n",
+	//minimum_rank);
 
   for(p = list_head(dag->parents); p != NULL; p = p2) {
     p2 = p->next;
@@ -177,12 +178,26 @@ should_send_dao(rpl_instance_t *instance, rpl_dio_t *dio, rpl_parent_t *p)
 static int
 acceptable_rank(rpl_dag_t *dag, rpl_rank_t rank)
 {
- /* PRINTF("ACCEP: rank = %u, DAG_RANK((rank, dag->instance)) = %u\n",rank,DAG_RANK(rank, dag->instance));
-  PRINTF("ACCEP: dag->min_rank = %u, dag->instance->max_rankinc = %u\n", dag->min_rank, dag->instance->max_rankinc);
-  PRINTF("ACCEP: DAG_RANK(dag->min_rank + dag->instance->max_rankinc, dag->instance) = %u\n", DAG_RANK(dag->min_rank + dag->instance->max_rankinc, dag->instance));*/
+ #if ((RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY) || (RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY))  
   return rank != INFINITE_RANK &&
     ((dag->instance->max_rankinc == 0) ||
      DAG_RANK(rank, dag->instance) <= DAG_RANK(dag->min_rank + dag->instance->max_rankinc, dag->instance));
+     
+#elif (RPL_DAG_MC == RPL_DAG_MC_EN_TOT) /**a me serve che al momento della ricezione del DIO, scatti il controllo del rank. Quindi, se il DIO 
+sender ha rank > del nodo che ha ricevuto il DIO, deve uscire a video "The parent is rejected". Questo per evitare che si formino dei loop tra 
+quattro nodi, cosa che mi è successa durante la simulazione, con 8 -> 9 -> 19 -> 18 -> 8. Questo però non impedisce che il nodo 6 scelga il 
+nodo 7, anche se di loop non ce ne sono perchè 7 -> 17 -> 27
+/**Mi basta un controllo del tipo DAG_RANK(parent,256) > DAG_RANK(nodo candidato parent,256)*/
+// PRINTF("acceptable_rank: rank = %u\n",rank);
+// PRINTF("acceptable_rank: mio rank = %u\n",dag->rank);
+// PRINTF("DAG_RANK(rank, dag->instance) = %u\n",DAG_RANK(rank, dag->instance));
+// PRINTF("DAG_RANK(dag->instance->rank, dag->instance) = %u \n",DAG_RANK(dag->instance->current_dag->rank, dag->instance));
+  return rank != INFINITE_RANK &&
+    ((dag->instance->max_rankinc == 0) ||
+     DAG_RANK(rank, dag->instance) <= DAG_RANK(dag->instance->current_dag->rank, dag->instance));  
+#else
+#error "acceptable_rank: RPL_DAG_MC not supported."
+#endif     
 }
 /************************************************************************/
 static rpl_dag_t *
@@ -448,7 +463,7 @@ rpl_free_instance(rpl_instance_t *instance)
   rpl_dag_t *dag;
   rpl_dag_t *end;
 
-  PRINTF("RPL: Leaving the instance %u\n", instance->instance_id);
+  //PRINTF("RPL: Leaving the instance %u\n", instance->instance_id);
 
   /* Remove any DAG inside this instance */
   for(dag = &instance->dag_table[0], end = dag + RPL_MAX_DAG_PER_INSTANCE; dag < end; ++dag) {
@@ -648,11 +663,11 @@ rpl_select_dag(rpl_instance_t *instance, rpl_parent_t *p) //seleziona il dag pre
     cont_num_scambi++;
     PRINTF("RPL: Changed preferred parent, rank changed from %u to %u\n",
   	(unsigned)old_rank, best_dag->rank);
-    PRINTF("num_scambi = %d\n",cont_num_scambi);
+   // PRINTF("num_scambi = %d\n",cont_num_scambi);
     
-    /*PRINTF("RPL: The preferred parent is: "); ///To print with EN_TOT metric and not ETX
+    PRINTF("RPL: The preferred parent is: ");
     PRINT6ADDR(&best_dag->preferred_parent->addr);
-    PRINTF("\n"); */
+    PRINTF("\n");
     
     
     RPL_STAT(rpl_stats.parent_switch++);
@@ -709,9 +724,9 @@ rpl_remove_parent(rpl_dag_t *dag, rpl_parent_t *parent)
 {
   rpl_nullify_parent(dag, parent);
 
-  PRINTF("RPL: Removing parent ");
-  PRINT6ADDR(&parent->addr);
-  PRINTF("\n");
+  //PRINTF("RPL: Removing parent ");
+  //PRINT6ADDR(&parent->addr);
+  //PRINTF("\n");
 
   list_remove(dag->parents, parent);
   memb_free(&parent_memb, parent);
@@ -726,9 +741,9 @@ rpl_nullify_parent(rpl_dag_t *dag, rpl_parent_t *parent)
     if(dag->joined) {
       if(dag->instance->def_route != NULL) {
         if(dag->instance->def_route->isused) {
-          PRINTF("RPL: Removing default route ");
-          PRINT6ADDR(&parent->addr);
-          PRINTF("\n");
+        //  PRINTF("RPL: Removing default route ");
+        //  PRINT6ADDR(&parent->addr);
+        //  PRINTF("\n");
           uip_ds6_defrt_rm(dag->instance->def_route);
         }
         dag->instance->def_route = NULL;
@@ -1025,7 +1040,7 @@ rpl_local_repair(rpl_instance_t *instance)
 {
   int i;
 
-  PRINTF("RPL: Starting a local instance repair\n");
+  //PRINTF("RPL: Starting a local instance repair\n");
   for(i = 0; i < RPL_MAX_DAG_PER_INSTANCE; i++) {
     if(instance->dag_table[i].used) {
       instance->dag_table[i].rank = INFINITE_RANK;
@@ -1116,14 +1131,14 @@ rpl_process_parent_event(rpl_instance_t *instance, rpl_parent_t *p)
   if(DAG_RANK(old_rank, instance) != DAG_RANK(instance->current_dag->rank, instance)) {
     /*  PRINTF("RPL: Moving in the instance from rank %hu to %hu\n",
 	   DAG_RANK(old_rank, instance), DAG_RANK(instance->current_dag->rank, instance));*/
-    if(instance->current_dag->rank != INFINITE_RANK) { /// To print with ETX and not with EN_TOT metric
-      /*PRINTF("RPL: The preferred parent is ");
+    if(instance->current_dag->rank != INFINITE_RANK) { 
+      PRINTF("RPL: The preferred parent is ");
       PRINT6ADDR(&instance->current_dag->preferred_parent->addr);
-      PRINTF("\n");*/
-    //  PRINTF(" (rank %u)\n",
-      //     (unsigned)DAG_RANK(instance->current_dag->preferred_parent->rank, instance)); ///è un valore di punto fisso
+      PRINTF("\n");
+      PRINTF(" (rank %u)\n",
+           (unsigned)DAG_RANK(instance->current_dag->preferred_parent->rank, instance)); ///è un valore di punto fisso
     }else {
-     // PRINTF("RPL: We don't have any parent");
+      PRINTF("RPL: We don't have any parent");
     }
   }
 #endif /* DEBUG */
@@ -1137,7 +1152,7 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio) //processa il pck e vede le 
   rpl_instance_t *instance;
   rpl_dag_t *dag, *previous_dag;
   rpl_parent_t *p;
-  static int cont_consistent_dio;
+  //static int cont_consistent_dio;
 //  PRINTF("process_dio\n");
   if(dio->mop != RPL_MOP_DEFAULT) {
   //  PRINTF("RPL: Ignoring a DIO with an unsupported MOP: %d\n", dio->mop);
@@ -1145,9 +1160,9 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio) //processa il pck e vede le 
   }
 
   if(dio->rank == INFINITE_RANK) {
-    PRINTF("RPL: Ignoring DIO from node with infinite rank: ");
-    PRINT6ADDR(from);
-    PRINTF("\n");
+   // PRINTF("RPL: Ignoring DIO from node with infinite rank: ");
+   // PRINT6ADDR(from);
+   // PRINTF("\n");
     return;
   }
 
@@ -1223,9 +1238,9 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio) //processa il pck e vede le 
      // PRINTF("PROCESS DIO: vado in add_parent \n");
       p = rpl_add_parent(dag, dio, from);
       if(p == NULL) {
-        PRINTF("RPL: Failed to add a new parent (");
-        PRINT6ADDR(from);
-        PRINTF("\n");
+       // PRINTF("RPL: Failed to add a new parent (");
+       // PRINT6ADDR(from);
+       // PRINTF("\n");
         return;
       }
       //PRINTF("RPL: DIO sender new candidate parent with rank %u and residual energy %u\n", (unsigned)p->rank,p->mc.obj.mlt);
@@ -1239,8 +1254,8 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio) //processa il pck e vede le 
   } else {
     if(p->rank == dio->rank) {
       //PRINTF("RPL: Received consistent DIO\n"); //la consistenza è data dal fatto che i rank del tx e rx sono uguali, oppure se  non 
-      cont_consistent_dio++;                                          //cambia il preferred parent
-      PRINTF("RPL: consistent DIO rx = %d\n", cont_consistent_dio);
+      //cont_consistent_dio++;                                          //cambia il preferred parent
+      //PRINTF("RPL: consistent DIO rx = %d\n", cont_consistent_dio);
       if(dag->joined) {
         instance->dio_counter++; //viene incrementata la cost c xchè il DIO rx è consistente
       //PRINTF("Il contatore c = %d\n", instance->dio_counter);  
@@ -1253,17 +1268,16 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio) //processa il pck e vede le 
   /*PRINTF("RPL: preferred DAG ");
   PRINT6ADDR(&instance->current_dag->dag_id);
   PRINTF("\n");*/
-//  PRINTF(", rank %u, min_rank %u, "
-//	 instance->current_dag->rank, instance->current_dag->min_rank); //this is the original one
-  PRINTF("node rank %u, parent rank %u,\n",
-	 instance->current_dag->rank, p->rank);///FDemicheli
-  //PRINTF("node rank %u\n",instance->current_dag->rank);
- // PRINTF("parent rank %u, parent etx %u, link metric %u, instance etx %u\n", //this is the original one
-	// p->rank, p->mc.obj.etx, p->link_metric, instance->mc.obj.etx);
+  PRINTF("rank %u, min_rank %u, ",
+            instance->current_dag->rank, instance->current_dag->min_rank);
+ // PRINTF("parent rank %u, parent etx %u, link metric %u, instance etx %u\n",
+	 //p->rank, p->mc.obj.etx, p->link_metric, instance->mc.obj.etx); //ETX
+   PRINTF("parent rank %u\n",
+	 p->rank); ///ENTOT
   /* We have allocated a candidate parent; process the DIO further. */
   memcpy(&p->mc, &dio->mc, sizeof(p->mc));
   if(rpl_process_parent_event(instance, p) == 0) {
-  // PRINTF("RPL: The candidate parent is rejected\n");
+    PRINTF("RPL: The candidate parent is rejected\n");
     return;
   }
 

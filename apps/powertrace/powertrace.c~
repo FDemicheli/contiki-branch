@@ -91,13 +91,13 @@ powertrace_print(char *str)
   uint32_t time, all_time, radio, all_radio;
 
   uint32_t energy_consumed_node_mJ;// variable added by FDemicheli
-  uint32_t energy_consumed_node_rx, energy_consumed_node_tx;
+  uint32_t energy_consumed_node_rx, energy_consumed_node_tx;// variable added by FDemicheli
   
   struct powertrace_sniff_stats *s;
 
   energest_flush();
   ///energest_type_time = return integer value. It is an unsigned long ed is expressed in rtimer ticks.
-  ///Remember: to obtain seconds, I have to divide by RTIMER_ARCH_SECOND
+  ///Remember: to obtain seconds, I have to divide by RTIMER_ARCH_SECOND = 32768
   ///These are the total time values, wich powertrace sum every time
   all_cpu = energest_type_time(ENERGEST_TYPE_CPU);///is high power CPU time
   all_lpm = energest_type_time(ENERGEST_TYPE_LPM);///is low power CPU time. It uses 3% of full power and is activated when no processes 
@@ -162,16 +162,14 @@ powertrace_print(char *str)
     
   energy_consumed_node_rx = 3 * 22 * (all_listen / RTIMER_ARCH_SECOND);
   
-  energy_consumed_node_tx  = 3 * 20 * (all_transmit/RTIMER_ARCH_SECOND)
+  printf("energy_consumed_node_rx = %lu\n",energy_consumed_node_rx);
   
-  energy_consumed_node_mJ = energy_consumed_node_tx + energy_consumed_node_rx;
-    
-  //energy_consumed_node_mJ = 3 * 20 * (all_transmit/RTIMER_ARCH_SECOND) + 3 * 22 * (all_listen / RTIMER_ARCH_SECOND);
+  energy_consumed_node_tx  = 3 * 20 * (all_transmit/RTIMER_ARCH_SECOND);
   
   printf("energy_consumed_node_tx = %lu\n",energy_consumed_node_tx);
   
-  printf("energy_consumed_node_rx = %lu\n",energy_consumed_node_rx);
-                             
+  energy_consumed_node_mJ = energy_consumed_node_tx + energy_consumed_node_rx;
+    
   printf("energy_consumed_node_mJ = %lu\n",energy_consumed_node_mJ);
   
     
@@ -271,7 +269,7 @@ energest_get_current_energy_consumption()
  // printf("all_transmit_function = %lu\n", all_transmit);
  // printf("all_listen_function = %lu\n",all_listen);
   energy_consumed_node_mJ = 3 * 20 * (all_transmit/RTIMER_ARCH_SECOND) + 3 * 22 * (all_listen / RTIMER_ARCH_SECOND);
-  //printf("energy_consumed_node_mJ = %lu\n",energy_consumed_node_mJ);
+  printf("energest_cons = %lu\n",energy_consumed_node_mJ);
   return energy_consumed_node_mJ;
 }
 /*--------------------------------------------------------------------------------------------------------------------------*/

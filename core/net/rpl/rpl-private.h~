@@ -320,8 +320,6 @@ void rpl_purge_routes(void);
 /* Objective function. */
 rpl_of_t *rpl_find_of(rpl_ocp_t);
 
-static int get_number_of_hops(rpl_parent_t *p);
-
 /* Timer functions. */
 void rpl_schedule_dao(rpl_instance_t *);
 void rpl_reset_dio_timer(rpl_instance_t *);

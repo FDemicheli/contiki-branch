@@ -224,7 +224,7 @@ dio_input(void) /** cosa succede alla ricezione di un DIO  */
   uip_ds6_nbr_t *nbr;
   int num_dio_received;
   
-  num_dio_received = 0;
+//   num_dio_received = 0;
 
   memset(&dio, 0, sizeof(dio));
 
@@ -241,12 +241,12 @@ dio_input(void) /** cosa succede alla ricezione di un DIO  */
   uip_ipaddr_copy(&from, &UIP_IP_BUF->srcipaddr);
 
   /* DAG Information Object */
- /* PRINTF("RPL: Received a DIO from ");
+  PRINTF("RPL: Received a DIO from ");
   PRINT6ADDR(&from);
-  PRINTF("\n");*/
+  PRINTF("\n");
   
-  num_dio_received++;
-  PRINTF("num DIO received = %d\n",num_dio_received);
+//   num_dio_received++;
+//   PRINTF("num DIO received = %d\n",num_dio_received);
 
   if((nbr = uip_ds6_nbr_lookup(&from)) == NULL) {
     if((nbr = uip_ds6_nbr_add(&from, (uip_lladdr_t *)
@@ -325,41 +325,35 @@ dio_input(void) /** cosa succede alla ricezione di un DIO  */
       dio.mc.flags |= buffer[i + 4] >> 7;
       dio.mc.aggr = (buffer[i + 4] >> 4) & 0x3;
       dio.mc.prec = buffer[i + 4] & 0xf;
-      
-//#if (RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY) || (RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY)
+   
       dio.mc.node_cycle_time = get16(buffer, i + 5);
-  //PRINTF("DIO_INPUT: mc.node_cycle_time ricevuto = %u\n", dio.mc.node_cycle_time);///viene rx il cycle time del nodo che ha inviato il DIO    
-//#endif
+ 
 
       dio.mc.length = buffer[i + 7];
 
       if(dio.mc.type == RPL_DAG_MC_ETX) {
         dio.mc.obj.etx = get16(buffer, i + 8);
-	//PRINTF("RPL: DIO INPUT: ETX %u\n",       
-        //PRINTF("RPL: DAG MC: type %u, flags %u, aggr %u, prec %u, length %u, ETX %u\n",
-	   //    (unsigned)dio.mc.type,  
-	  //     (unsigned)dio.mc.flags, 
-	    //   (unsigned)dio.mc.aggr, 
-	    //   (unsigned)dio.mc.prec, 
-	    //   (unsigned)dio.mc.length, 
-	  //     (unsigned)dio.mc.obj.etx);
+        /*PRINTF("RPL: DAG MC: type %u, flags %u, aggr %u, prec %u, length %u, ETX %u\n",
+	       (unsigned)dio.mc.type,  
+	       (unsigned)dio.mc.flags, 
+	       (unsigned)dio.mc.aggr, 
+	       (unsigned)dio.mc.prec, 
+	       (unsigned)dio.mc.length, 
+	       (unsigned)dio.mc.obj.etx);*/
 	 
       } else if(dio.mc.type == RPL_DAG_MC_ENERGY) {
         dio.mc.obj.energy.flags = buffer[i + 8]; //originale
 	dio.mc.obj.energy.energy_est = buffer[i + 9];//originale
-//	PRINTF("DIO_INPUT: en cons tot = %u\n", dio.mc.obj.energy.energy_est);
       } else if(dio.mc.type == RPL_DAG_MC_AVG_DELAY) {//Monica
         dio.mc.obj.avg_delay_to_sink = get16(buffer, i + 8);
       }
-        //else if(dio.mc.type == RPL_DAG_MC_MLT) {///FDemicheli
-	  else if(dio.mc.type == RPL_DAG_MC_EN_TOT) {///FDemicheli
+	else if(dio.mc.type == RPL_DAG_MC_EN_TOT) {///FDemicheli
 	///DIO must read the residual energy value and putting it into entot field
-        //dio.mc.obj.mlt = get16(buffer, i + 8);
          dio.mc.obj.entot = get16(buffer, i + 8);
-	//PRINTF("DIO_INPUT: en cons parent = %u\n", dio.mc.obj.mlt);
+	PRINTF("DIO_INPUT: en cons path = %u\n", dio.mc.obj.entot);
       }	
       else {
-       //PRINTF("RPL: Unhandled DAG MC type: %u\n", (unsigned)dio.mc.type);
+      // PRINTF("RPL: Unhandled DAG MC type: %u\n", (unsigned)dio.mc.type);
        return;
       }
 
@@ -435,9 +429,8 @@ dio_input(void) /** cosa succede alla ricezione di un DIO  */
       memcpy(&dio.prefix_info.prefix, &buffer[i + 16], 16);
       break;
     default:
-    //  PRINTF("RPL: Unsupported suboption type in DIO: %u\n",
-	//(unsigned)subopt_type);
-      PRINTF("NO suboption type in DIO\n");	
+      PRINTF("RPL: Unsupported suboption type in DIO: %u\n",
+	(unsigned)subopt_type);
     }
   }
 
@@ -529,22 +522,20 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr) /** cosa succede pri
       buffer[pos++] = 2;
       buffer[pos++] = instance->mc.obj.energy.flags; //originale
       buffer[pos++] = instance->mc.obj.energy.energy_est; //originale
-     // PRINTF("DIO_OUTPUT: energy consumption = %u mJ\n",instance->mc.obj.energy.energy_est);
       pos += 2;
     } else if(instance->mc.type == RPL_DAG_MC_AVG_DELAY) {
       buffer[pos++] = 2;
       set16(buffer, pos, instance->mc.obj.avg_delay_to_sink);
       pos += 2;
-    } //else if(instance->mc.type == RPL_DAG_MC_MLT) {///Demicheli
+    } 
       else if(instance->mc.type == RPL_DAG_MC_EN_TOT){
       buffer[pos++] = 2;
-      //set16(buffer, pos, instance->mc.obj.mlt);///send the energy consumption of a node
       set16(buffer, pos, instance->mc.obj.entot);///send the energy consumption of a node
       pos += 2;
-    //  PRINTF("DIO_OUTPUT: energy consumption = %u mJ\n",instance->mc.obj.entot);
+      //PRINTF("DIO_OUTPUT: energy consumption = %u mJ\n",instance->mc.obj.entot);
     } 
       else {
-     // PRINTF("RPL: Unable to send DIO because of unhandled DAG MC type %u\n",
+      //PRINTF("RPL: Unable to send DIO because of unhandled DAG MC type %u\n",
 	//(unsigned)instance->mc.type);
       return;
     }
@@ -593,25 +584,25 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr) /** cosa succede pri
   }
 
 #if RPL_LEAF_ONLY
- /* PRINTF("RPL: Sending unicast-DIO with rank %u to ",
-      (unsigned)dag->rank);
-  PRINT6ADDR(uc_addr);
-  PRINTF("\n");*/
+  //PRINTF("RPL: Sending unicast-DIO with rank %u to ",
+  //    (unsigned)dag->rank);
+  //PRINT6ADDR(uc_addr);
+  //PRINTF("\n");
   uip_icmp6_send(uc_addr, ICMP6_RPL, RPL_CODE_DIO, pos);
 #else /* RPL_LEAF_ONLY */
   /* Unicast requests get unicast replies! */
   if(uc_addr == NULL) {
     num_dio_sent += RPL_PARENT_COUNT(dag);
-  /*  PRINTF("RPL: Sending a multicast-DIO with rank %u\n",
-        (unsigned)instance->current_dag->rank);*/
+    PRINTF("RPL: Sending a multicast-DIO with rank %u\n",
+        (unsigned)instance->current_dag->rank);
     uip_create_linklocal_rplnodes_mcast(&addr);
     uip_icmp6_send(&addr, ICMP6_RPL, RPL_CODE_DIO, pos);
-    PRINTF("num DIO sent = %d\n",num_dio_sent);    
+//    PRINTF("num DIO sent = %d\n",num_dio_sent);    
   } else {
-    //PRINTF("RPL: Sending unicast-DIO with rank %u to ",
-      //  (unsigned)instance->current_dag->rank);
-    //PRINT6ADDR(uc_addr);
-    //PRINTF("\n");
+   // PRINTF("RPL: Sending unicast-DIO with rank %u to ",
+   //     (unsigned)instance->current_dag->rank);
+   // PRINT6ADDR(uc_addr);
+   // PRINTF("\n");
     uip_icmp6_send(uc_addr, ICMP6_RPL, RPL_CODE_DIO, pos);
   }
 #endif /* RPL_LEAF_ONLY */
@@ -649,12 +640,12 @@ dao_input(void)
   uip_ipaddr_copy(&dao_sender_addr, &UIP_IP_BUF->srcipaddr);
 
   /* Destination Advertisement Object */
-/*  PRINTF("RPL: Received a DAO from ");
+  PRINTF("RPL: Received a DAO from ");
   PRINT6ADDR(&dao_sender_addr);
-  PRINTF("\n");*/
+  PRINTF("\n");
 
   cont_dao_received++;
-  PRINTF("num DAO received = %d\n",cont_dao_received);
+ // PRINTF("num DAO received = %d\n",cont_dao_received);
   
   buffer = UIP_ICMP_PAYLOAD;
   buffer_length = uip_len - uip_l3_icmp_hdr_len;
@@ -787,7 +778,7 @@ dao_output(rpl_parent_t *n, uint8_t lifetime)
   int pos;
   int cont_dao_sent;
   
-  cont_dao_sent = 0;
+ // cont_dao_sent = 0;
 
   /* Destination Advertisement Object */
 
@@ -841,14 +832,15 @@ dao_output(rpl_parent_t *n, uint8_t lifetime)
   buffer[pos++] = 0; /* path seq - ignored */
   buffer[pos++] = lifetime;
 
-  /*PRINTF("RPL: Sending DAO with prefix ");
-  PRINT6ADDR(&prefix);
-  PRINTF(" to ");
+ // PRINTF("RPL: Sending DAO with prefix ");
+ // PRINT6ADDR(&prefix);
+  PRINTF("RPL: Sending DAO to ");
+ // PRINTF(" to ");
   PRINT6ADDR(&n->addr);
-  PRINTF("\n");*/
+  PRINTF("\n");
   
-  cont_dao_sent++;
-  PRINTF("num DAO sent = %d\n",cont_dao_sent);
+  //cont_dao_sent++;
+  //PRINTF("num DAO sent = %d\n",cont_dao_sent);
   uip_icmp6_send(&n->addr, ICMP6_RPL, RPL_CODE_DAO, pos);
 }
 /*---------------------------------------------------------------------------*/
@@ -871,7 +863,7 @@ dao_ack_input(void)
   /*PRINTF("RPL: Received a DAO ACK with sequence number %d and status %d from ",
     sequence, status);
   PRINT6ADDR(&UIP_IP_BUF->srcipaddr);*/
-  PRINTF("\n");
+  //PRINTF("\n");
 }
 /*---------------------------------------------------------------------------*/
 void

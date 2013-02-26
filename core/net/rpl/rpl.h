@@ -105,8 +105,6 @@ struct rpl_metric_container {
   uint8_t length;//def la lunghezza dell'oggetto metrica di routing
   /* field added by RMonica */
   uint16_t node_cycle_time; //Contain the node cycle time
-  /* field added by FDemicheli */
-  //uint16_t pref_parent; ///Il nodo annuncia il suo PP
   union metric_object {
     struct rpl_metric_object_energy energy;  
     uint16_t etx;
