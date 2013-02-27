@@ -69,7 +69,7 @@ AUTOSTART_PROCESSES(&udp_client_process);
 /*---------------------------------------------------------------------------*/
 static void
 tcpip_handler(void) {}
-/*
+
 {
   char *str;
 
@@ -78,11 +78,11 @@ tcpip_handler(void) {}
     str[uip_datalen()] = '\0';
     printf("DATA recv '%s'\n", str);
   }
-}*/
+}
 /*---------------------------------------------------------------------------*/
 static void
 send_packet(void *ptr){}
-/*{
+{
   static int seq_id;
   char buf[MAX_PAYLOAD_LEN];
 
@@ -92,7 +92,7 @@ send_packet(void *ptr){}
   sprintf(buf, "Hello %d from the client", seq_id);
   uip_udp_packet_sendto(client_conn, buf, strlen(buf),
                         &server_ipaddr, UIP_HTONS(UDP_SERVER_PORT));
-}*/
+}
 /*---------------------------------------------------------------------------*/
 static void
 print_local_addresses(void){}
@@ -167,10 +167,10 @@ PROCESS_THREAD(udp_client_process, ev, data)
 
   /* new connection with remote host */
   client_conn = udp_new(NULL, UIP_HTONS(UDP_SERVER_PORT), NULL); 
-  /*if(client_conn == NULL) {
+  if(client_conn == NULL) {
     PRINTF("No UDP connection available, exiting the process!\n");
     PROCESS_EXIT();
-  }*/
+  }
   udp_bind(client_conn, UIP_HTONS(UDP_CLIENT_PORT)); 
 
   PRINTF("Created a connection with the server ");
@@ -185,9 +185,9 @@ PROCESS_THREAD(udp_client_process, ev, data)
   etimer_set(&periodic, SEND_INTERVAL);
   while(1) {
     PROCESS_YIELD();
-    /*if(ev == tcpip_event) {
+    if(ev == tcpip_event) {
       tcpip_handler();
-    }*/
+    }
     
     if(etimer_expired(&periodic)) {
       etimer_reset(&periodic);

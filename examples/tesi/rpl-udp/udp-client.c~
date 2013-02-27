@@ -35,9 +35,8 @@
 #include "net/uip-udp-packet.h"
 #include "sys/ctimer.h"
 
-//#define WITH_COMPOWER 1
 #ifdef WITH_COMPOWER
-#include "powertrace.h"
+#include "powertrace.h"///per stampare powertrace basta abilitare WITH_COMPOWER=1 nel Makefile
 #endif
 
 #include <stdio.h>

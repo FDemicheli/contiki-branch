@@ -222,7 +222,7 @@ dio_input(void) /** cosa succede alla ricezione di un DIO  */
   int len;
   uip_ipaddr_t from;
   uip_ds6_nbr_t *nbr;
-  int num_dio_received;
+//  int num_dio_received;
   
 //   num_dio_received = 0;
 
@@ -776,7 +776,7 @@ dao_output(rpl_parent_t *n, uint8_t lifetime)
   uint8_t prefixlen;
   uip_ipaddr_t prefix;
   int pos;
-  int cont_dao_sent;
+//  int cont_dao_sent;
   
  // cont_dao_sent = 0;
 

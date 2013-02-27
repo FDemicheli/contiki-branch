@@ -63,7 +63,7 @@
 #include "net/neighbor-info.h"
 
 /*************************************************************************/
-///Note by FDemicheli: to print "The preferred parent is.." with EN_TOT metric, enabling the PRINTF at line 653
+///Note by FDemicheli: modified "acceptable_rank to adapt it to ENTOT metric. line 180"
 /************************************************************************/
 extern rpl_of_t RPL_OF; //extern xchè ho piu header file, RPL_OF è una variab globale e la voglio solo dichiarare
 static rpl_of_t * const objective_functions[] = {&RPL_OF};
@@ -131,8 +131,8 @@ nullify_parents(rpl_dag_t *dag, rpl_rank_t minimum_rank)
 {
   rpl_parent_t *p, *p2;
 
-  //PRINTF("RPL: Removing parents nullify (minimum rank %u)\n",
-	//minimum_rank);
+  PRINTF("RPL: Removing parents nullify (minimum rank %u)\n",
+	minimum_rank);
 
   for(p = list_head(dag->parents); p != NULL; p = p2) {
     p2 = p->next;
@@ -178,26 +178,9 @@ should_send_dao(rpl_instance_t *instance, rpl_dio_t *dio, rpl_parent_t *p)
 static int
 acceptable_rank(rpl_dag_t *dag, rpl_rank_t rank)
 {
- #if ((RPL_DAG_MC == RPL_DAG_MC_ETX) || (RPL_DAG_MC == RPL_DAG_MC_ENERGY) || (RPL_DAG_MC == RPL_DAG_MC_AVG_DELAY))  
   return rank != INFINITE_RANK &&
     ((dag->instance->max_rankinc == 0) ||
      DAG_RANK(rank, dag->instance) <= DAG_RANK(dag->min_rank + dag->instance->max_rankinc, dag->instance));
-     
-#elif (RPL_DAG_MC == RPL_DAG_MC_EN_TOT) /**a me serve che al momento della ricezione del DIO, scatti il controllo del rank. Quindi, se il DIO 
-sender ha rank > del nodo che ha ricevuto il DIO, deve uscire a video "The parent is rejected". Questo per evitare che si formino dei loop tra 
-quattro nodi, cosa che mi è successa durante la simulazione, con 8 -> 9 -> 19 -> 18 -> 8. Questo però non impedisce che il nodo 6 scelga il 
-nodo 7, anche se di loop non ce ne sono perchè 7 -> 17 -> 27
-/**Mi basta un controllo del tipo DAG_RANK(parent,256) > DAG_RANK(nodo candidato parent,256)*/
-// PRINTF("acceptable_rank: rank = %u\n",rank);
-// PRINTF("acceptable_rank: mio rank = %u\n",dag->rank);
-// PRINTF("DAG_RANK(rank, dag->instance) = %u\n",DAG_RANK(rank, dag->instance));
-// PRINTF("DAG_RANK(dag->instance->rank, dag->instance) = %u \n",DAG_RANK(dag->instance->current_dag->rank, dag->instance));
-  return rank != INFINITE_RANK &&
-    ((dag->instance->max_rankinc == 0) ||
-     DAG_RANK(rank, dag->instance) <= DAG_RANK(dag->instance->current_dag->rank, dag->instance));  
-#else
-#error "acceptable_rank: RPL_DAG_MC not supported."
-#endif     
 }
 /************************************************************************/
 static rpl_dag_t *
@@ -1040,7 +1023,7 @@ rpl_local_repair(rpl_instance_t *instance)
 {
   int i;
 
-  //PRINTF("RPL: Starting a local instance repair\n");
+  PRINTF("RPL: Starting a local instance repair\n");
   for(i = 0; i < RPL_MAX_DAG_PER_INSTANCE; i++) {
     if(instance->dag_table[i].used) {
       instance->dag_table[i].rank = INFINITE_RANK;

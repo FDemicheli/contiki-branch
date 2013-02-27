@@ -113,8 +113,8 @@ rpl_of_t rpl_of_etx = {
 #define PARENT_SWITCH_THRESHOLD_DIV	2 /*x discriminare i due rank con ETX*/
 
 //#define RPL_PARENT_SWITCH_THRESHOLD	5 /*threshold con ENTOT */
-#define RPL_PARENT_SWITCH_THRESHOLD	2 /*threshold con ENTOT */
-//#define RPL_PARENT_SWITCH_THRESHOLD	3 /*threshold con ENTOT */
+//#define RPL_PARENT_SWITCH_THRESHOLD	2 /*threshold con ENTOT */
+#define RPL_PARENT_SWITCH_THRESHOLD	3 /*threshold con ENTOT */
 //#define RPL_PARENT_SWITCH_THRESHOLD	20 /*threshold con ENTOT */
 
 #define AVG_DELAY_MAX_DELAY 65535 /*RMonica*/
@@ -281,23 +281,23 @@ best_parent(rpl_parent_t *p1, rpl_parent_t *p2) //Compares two parents and retur
 #error "best_parent: RPL_DAG_MC not supported."
 #endif
 
-//     PRINTF("P1 = "); //--> è il primo nodo nell'insieme dei parent
-//     PRINT6ADDR(&p1->addr);
-//     PRINTF("\n");
-// // //   
-//     PRINTF("P2 = "); //--> è il primo nodo nell'insieme dei parent
-//     PRINT6ADDR(&p2->addr);
-//     PRINTF("\n");
-//    
-//   
-//    PRINTF("p1 rank = %u\n", p1->rank);
-//    PRINTF("p2 rank = %u\n",p2->rank);
-//    
-//    p1_metric = calculate_path_metric(p1); 
-//    PRINTF("p1_metric = %u\n", p1_metric);
-//     
-//    p2_metric = calculate_path_metric(p2);
-//    PRINTF("p2_metric = %u\n", p2_metric);
+    PRINTF("P1 = "); //--> è il primo nodo nell'insieme dei parent
+    PRINT6ADDR(&p1->addr);
+    PRINTF("\n");
+
+    PRINTF("P2 = "); //--> è il primo nodo nell'insieme dei parent
+    PRINT6ADDR(&p2->addr);
+    PRINTF("\n");
+   
+  
+//   PRINTF("p1 rank = %u\n", p1->rank);
+//   PRINTF("p2 rank = %u\n",p2->rank);
+   
+   p1_metric = calculate_path_metric(p1); 
+   PRINTF("p1_metric = %u\n", p1_metric);
+    
+   p2_metric = calculate_path_metric(p2);
+   PRINTF("p2_metric = %u\n", p2_metric);
    
   if(p1 == dag->preferred_parent || p2 == dag->preferred_parent) {      
    // Maintain stability of the preferred parent in case of similar ranks. 
