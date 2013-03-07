@@ -53,17 +53,16 @@
 #include <string.h>
 
 //Def il livello di debug del codice
-//#define DEBUG DEBUG_NONE ///non stampa a video i msg
+#define DEBUG DEBUG_NONE ///non stampa a video i msg
 //#define DEBUG DEBUG_PRINT /*stampa a video tutti i printf(), e se li stampa tutti poi c'è errore xchè occupano troppa memoria*/
 //#define DEBUG DEBUG_ANNOTATE /*stampa solo i msg con ANNOTATE*/
-#define DEBUG 1
+//#define DEBUG 1
 
 #include "net/uip-debug.h"
 
 #include "net/neighbor-info.h"
 
 /*************************************************************************/
-///Note by FDemicheli: modified "acceptable_rank to adapt it to ENTOT metric. line 180"
 /************************************************************************/
 extern rpl_of_t RPL_OF; //extern xchè ho piu header file, RPL_OF è una variab globale e la voglio solo dichiarare
 static rpl_of_t * const objective_functions[] = {&RPL_OF};

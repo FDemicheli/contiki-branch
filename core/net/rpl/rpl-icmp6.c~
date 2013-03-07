@@ -64,8 +64,8 @@
 #include <limits.h>
 #include <string.h>
 
-//#define DEBUG DEBUG_NONE
-#define DEBUG DEBUG_PRINT
+#define DEBUG DEBUG_NONE
+//#define DEBUG DEBUG_PRINT
 
 #include "net/uip-debug.h"
 
@@ -776,7 +776,7 @@ dao_output(rpl_parent_t *n, uint8_t lifetime)
   uint8_t prefixlen;
   uip_ipaddr_t prefix;
   int pos;
-  int cont_dao_sent;
+//  int cont_dao_sent;
   
  // cont_dao_sent = 0;
 

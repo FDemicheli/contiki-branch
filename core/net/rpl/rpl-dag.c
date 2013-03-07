@@ -54,9 +54,9 @@
 
 //Def il livello di debug del codice
 //#define DEBUG DEBUG_NONE ///non stampa a video i msg
-//#define DEBUG DEBUG_PRINT /*stampa a video tutti i printf(), e se li stampa tutti poi c'è errore xchè occupano troppa memoria*/
+#define DEBUG DEBUG_PRINT /*stampa a video tutti i printf(), e se li stampa tutti poi c'è errore xchè occupano troppa memoria*/
 //#define DEBUG DEBUG_ANNOTATE /*stampa solo i msg con ANNOTATE*/
-#define DEBUG 1
+//#define DEBUG 1
 
 #include "net/uip-debug.h"
 

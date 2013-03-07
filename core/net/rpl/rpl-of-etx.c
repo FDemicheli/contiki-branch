@@ -77,10 +77,6 @@ static rpl_parent_t *best_parent(rpl_parent_t *, rpl_parent_t *);
 static rpl_dag_t *best_dag(rpl_dag_t *, rpl_dag_t *);
 static rpl_rank_t calculate_rank(rpl_parent_t *, rpl_rank_t);
 
-/*#if (RPL_DAG_MC == RPL_DAG_MC_MLT) || (RPL_DAG_MC == RPL_DAG_MC_MLT_TOT)
-static int get_number_of_hops(rpl_parent_t *);
-#endif*/
-
 /*
  Calculates a rank value using the parent rank and a base rank.  If "parent" is NULL, the objective function selects a default increment
  that is adds to the "base_rank". Otherwise, the OF uses information known  about "parent" to select an increment to the "base_rank".
@@ -112,10 +108,8 @@ rpl_of_t rpl_of_etx = {
  */
 #define PARENT_SWITCH_THRESHOLD_DIV	2 /*x discriminare i due rank con ETX*/
 
-//#define RPL_PARENT_SWITCH_THRESHOLD	5 /*threshold con ENTOT */
-//#define RPL_PARENT_SWITCH_THRESHOLD	2 /*threshold con ENTOT */
-#define RPL_PARENT_SWITCH_THRESHOLD	3 /*threshold con ENTOT */
-//#define RPL_PARENT_SWITCH_THRESHOLD	20 /*threshold con ENTOT */
+#define RPL_PARENT_SWITCH_THRESHOLD	5 /*threshold con ENTOT */
+//#define RPL_PARENT_SWITCH_THRESHOLD	10 /*threshold con ENTOT */
 
 #define AVG_DELAY_MAX_DELAY 65535 /*RMonica*/
 #define AVG_DELAY_SWITCH_THRESHOLD (RTIMER_ARCH_SECOND / 3000) /*RMonica*/
@@ -162,7 +156,7 @@ calculate_path_metric(rpl_parent_t *p)
      return p->mc.obj.entot + energest_get_current_energy_consumption();
   } else {
     uint16_t consumed_energy = energest_get_current_energy_consumption();///node's energy consumption
-    PRINTF("my consumed_energy = %u\n",consumed_energy);
+    //PRINTF("my consumed_energy = %u\n",consumed_energy);
     //Devo andare a leggere il valore di energia consumata del nodo parent
     ///p->mc.obj.entot; //energy consumption from parent node --> reads from DIO message received    
     //PRINTF("p->mc.obj.entot = %u\n",p->mc.obj.entot);
@@ -215,11 +209,8 @@ calculate_rank(rpl_parent_t *p, rpl_rank_t base_rank)
     rank_increase = NEIGHBOR_INFO_FIX2ETX(p->dag->instance->min_hoprankinc);
     
 #elif (RPL_DAG_MC_EN_TOT == RPL_DAG_MC_EN_TOT)
-    //PRINTF("p->link_metric = %d\n",p->link_metric);
-    //rank_increase = NEIGHBOR_INFO_FIX2ETX(p->link_metric * p->dag->instance->min_hoprankinc);
-    //rank_increase = NEIGHBOR_INFO_FIX2ETX(p->dag->instance->min_hoprankinc); // rank_increase = 256/16 = 16
     rank_increase = NEIGHBOR_INFO_FIX2ETX( 16 * p->dag->instance->min_hoprankinc);
-    //PRINTF("rank increase = %d\n",rank_increase);
+    ///questo valore consente di rilevare i loop e risolverli.
 #else
 #error "calculate_rank: not supported."
 #endif
@@ -236,8 +227,6 @@ calculate_rank(rpl_parent_t *p, rpl_rank_t base_rank)
    /* Calculate the rank based on the new rank information from DIO or
       stored otherwise. */
     new_rank = base_rank + rank_increase; ///parent_rank + dipende
-   // PRINTF("new rank = base_rank %d + rank_increase %d = %d\n",base_rank, rank_increase, new_rank);
-    //PRINTF("new rank = %u\n",new_rank);
   }
   
   return new_rank;   
@@ -281,23 +270,23 @@ best_parent(rpl_parent_t *p1, rpl_parent_t *p2) //Compares two parents and retur
 #error "best_parent: RPL_DAG_MC not supported."
 #endif
 
-    PRINTF("P1 = "); //--> è il primo nodo nell'insieme dei parent
+/*    PRINTF("P1 = "); //--> è il primo nodo nell'insieme dei parent
     PRINT6ADDR(&p1->addr);
     PRINTF("\n");
 
     PRINTF("P2 = "); //--> è il primo nodo nell'insieme dei parent
     PRINT6ADDR(&p2->addr);
     PRINTF("\n");
-   
+    
   
-//   PRINTF("p1 rank = %u\n", p1->rank);
-//   PRINTF("p2 rank = %u\n",p2->rank);
+   PRINTF("p1 rank = %u\n", p1->rank);
+   PRINTF("p2 rank = %u\n",p2->rank);
    
    p1_metric = calculate_path_metric(p1); 
    PRINTF("p1_metric = %u\n", p1_metric);
     
    p2_metric = calculate_path_metric(p2);
-   PRINTF("p2_metric = %u\n", p2_metric);
+   PRINTF("p2_metric = %u\n", p2_metric);*/
    
   if(p1 == dag->preferred_parent || p2 == dag->preferred_parent) {      
    // Maintain stability of the preferred parent in case of similar ranks. 
@@ -305,15 +294,12 @@ best_parent(rpl_parent_t *p1, rpl_parent_t *p2) //Compares two parents and retur
 
 // PIETRO: se la differenza è minore della soglia, ritorna il genitore preferito (che è uno dei due)
   
-    if((p1_metric == 0 || p2_metric == 0) || (p1_metric == p2_metric)){
+    if(p1_metric == 0 || p2_metric == 0 || p1_metric == p2_metric){
       return dag->preferred_parent;
     }
-    else if(p2->rank == 256){
-     return p2;
-    }
     else {
-      if((p1_metric > p2_metric && (p1_metric - p2_metric) / p2_metric < min_diff) ||
-	(p2_metric > p1_metric && (p2_metric - p1_metric) / p1_metric < min_diff)){
+      if((p1_metric > p2_metric && ((p1_metric - p2_metric) / p2_metric)*100 < min_diff) ||
+	(p2_metric > p1_metric && ((p2_metric - p1_metric) / p1_metric)*100 < min_diff)){
        
 	return dag->preferred_parent; // manteniamo il preferred parent attuale se la differenza è minore della soglia min_diff
       } 
@@ -329,24 +315,15 @@ best_parent(rpl_parent_t *p1, rpl_parent_t *p2) //Compares two parents and retur
 #endif
  }
 
-#if (RPL_DAG_MC == RPL_DAG_MC_EN_TOT) /**riscontrato durante le simulazioni ma solo all'inizio. Se due nodi hanno la stessa metrica, viene 
-scelto P2; però P2 non sempre è la scelta corretta. Allora scelgo il nodo con rank minore. Se mi limito a rimanere con il preferred parent, ho
-riscontrato che si crea un loop tra quattro nodi: 20 -> 21 -> 31 -> 30 -> 20*/
+#if (RPL_DAG_MC == RPL_DAG_MC_EN_TOT) /**riscontrato durante le simulazioni all'inizio se i due valori di energia consumata sono uguali.
+Se due nodi hanno la stessa metrica, viene scelto P2 dal SO; però P2 non sempre è la scelta corretta. Allora rimango con p1.
+TODO: da sistemare*/
 if(p1_metric == p2_metric)
-  {
-    if(p1->rank > p2->rank)
-    {
-      return p2;
-    } 
-    else if (p1->rank < p2->rank)
-    { 
+{
       return p1;
-    }
-      return dag->preferred_parent;
-  }
+}     
 #endif
  // se nessuno dei due è il preferito, o se la differenza è maggiore della soglia, ritorna quello con metrica minore      
-   //PRINTF("else scelgo il minore\n");
  return p1_metric < p2_metric ? p1 : p2;  
 }
    
